@@ -1,0 +1,155 @@
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+""" bacula-del-jobs.py
+Description:
+Deletes all catalog entries that are associated to the given storage_name and also tries to delete the volume on
+disk. Notice that it deletes volumes matching given storage name OR give job names.
+This is only intended to run when you really want to delete something specifically.
+"""
+import re
+import os
+import sys
+import traceback
+import time
+from datetime import datetime
+from subprocess import Popen, PIPE
+
+import psycopg2
+
+sys.path.append("/etc/bacula-scripts")
+
+from bacula_del_jobs_conf import (dry_run, sd_conf, storages_conf, storagenames, storagenames_del_only_catalog_entries,
+                                 jobnames, filters)
+from general_conf import db_host, db_user, db_name, sd_conf, storages_conf
+
+placeholder = "%s" # Building our parameterized sql command
+jobnames_placeholders = ', '.join([placeholder] * len(jobnames))
+storagenames_placeholders = ', '.join([placeholder] * len(storagenames))
+
+# Checking if services are up
+services = ['bareos-dir', 'postgresql']
+for x in services:
+    p = Popen(['systemctl', 'is-active', x], stdout=PIPE, stderr=PIPE)
+    out, err = p.communicate()
+    out = out.decode("utf-8").strip()
+    if "failed" == out:
+        print("Exiting, because dependent services are down.")
+        sys.exit()
+
+
+def find_mount_point(path):
+    path = os.path.abspath(path)
+    while not os.path.ismount(path):
+        path = os.path.dirname(path)
+    return path
+
+
+def format_exception(e):
+    """Usage: except Exception as e:
+                  log.error(format_exception(e)) """
+    exception_list = traceback.format_stack()
+    exception_list = exception_list[:-2]
+    exception_list.extend(traceback.format_tb(sys.exc_info()[2]))
+    exception_list.extend(traceback.format_exception_only(sys.exc_info()[0], sys.exc_info()[1]))
+    exception_str = 'Traceback (most recent call last):\n'
+    exception_str += ''.join(exception_list)
+    exception_str = exception_str[:-1]  # Removing the last \n
+    return exception_str
+
+
+def parse_conf(lines):
+    parsed = []
+    obj = None
+    for line in lines:
+        line, hash, comment = line.partition('#')
+        line = line.strip()
+        if not line:
+            continue
+        m = re.match(r'(\w+)\s*{', line)
+        if m:
+            # Start a new object
+            if obj is not None:
+                raise Exception('Nested objects!')
+            obj = {'thing': m.group(1)}
+            parsed.append(obj)
+            continue
+        m = re.match(r'\s*}', line)
+        if m:
+            # End an object
+            obj = None
+            continue
+        m = re.match(r'\s*([^=]+)\s*=\s*(.*)$', line)
+        if m:
+            # An attribute
+            key, value = m.groups()
+            obj[key.strip()] = value.rstrip(';')
+            continue
+    return parsed
+
+
+def build_volpath(volname, storagename, sd_conf_parsed, storages_parsed):
+    """Looks in config files for device path and returns devicename joined with the volname."""
+    for storage in storages_parsed:
+        if storagename == storage['Name']:
+            devicename = storage['Device']
+            for device in sd_conf_parsed:
+                if devicename == device['Name']:
+                    volpath = os.path.join(device['Archive Device'], volname)
+                    if (not find_mount_point(device["Archive Device"]) == "/" or storagename in
+                    storagenames_del_only_catalog_entries):
+                        return volpath
+                    else:
+                        print("Device %s not mounted. Please mount it." % devicename)
+                        return None
+
+
+def del_backups(b):
+    """Deletes list of backups from disk and catalog"""
+    for x, y, volpath, z in b:
+        volname = os.path.basename(volpath)
+        print('Deleting jobid: %s jn: %s vol: %s' % (x, y, volpath))
+        if not dry_run:
+            try:
+                os.remove(volpath)
+                print("Deleted file %s" % volpath)
+            except:
+                print('Already deleted vol %s' % volpath)
+            p1 = Popen(['echo', 'delete volume=%s yes' % volname], stdout=PIPE)
+            p2 = Popen(['bconsole'], stdin=p1.stdout, stdout=PIPE)
+            p1.stdout.close()
+            out, err = p2.communicate()
+            print(out, err)
+try:
+    con = psycopg2.connect(database=db_name, user=db_user, host=db_host)
+    cur = con.cursor()
+    query = "select distinct j.jobid, j.name, m.volumename, s.name from job j, media m, jobmedia jm, storage s " \
+            "WHERE m.mediaid=jm.mediaid " \
+            "AND j.jobid=jm.jobid " \
+            "AND s.storageid=m.storageid "
+    if filters == "jobname":
+        data = jobnames
+        query = query + " AND j.name IN (%s);" % (jobnames_placeholders)
+    elif filters == "or_both":
+        data = storagenames + jobnames
+        query = query + " AND (s.name IN (%s) OR j.name IN (%s));" % (storagenames_placeholders, jobnames_placeholders)
+    elif filters == "and_both":
+        data = storagenames + jobnames
+        query = query + " AND (s.name IN (%s) OR j.name IN (%s));" % (storagenames_placeholders, jobnames_placeholders)
+    elif filters == "storage":
+        data = storagenames
+        query = query + " AND s.name IN (%s);" % (storagenames_placeholders)
+    else:
+        log.error("Wrong filter or filter not defined.")
+        sys.exit()
+    print("Query: %s %s" % (query, str(data)))
+    cur.execute(query, data)
+    del_job_media_jm_storage = cur.fetchall()
+except Exception as e:
+    print(format_exception(e))
+with open (sd_conf, 'r') as f:
+    sd_conf_parsed = parse_conf(f)
+with open (storages_conf, 'r') as f:
+    storages_conf_parsed = parse_conf(f)
+del_job_media_jm_storage = [(w, x, build_volpath(y, z, sd_conf_parsed, storages_conf_parsed), z) for w, x, y, z in
+                            del_job_media_jm_storage if build_volpath(y, z, sd_conf_parsed, storages_conf_parsed)]
+del_backups(del_job_media_jm_storage)
