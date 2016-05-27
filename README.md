@@ -30,7 +30,8 @@ Offsite solution with udev and e.g. usb-sata disk (e.g. plugin once a week and s
   purged volumes)
 - Example job resource:
 
-```Job {
+```
+Job {
   Name = c01full-lt-test01-phserver01
   Pool = Full-LT
   Client  = phserver01-fd
@@ -67,7 +68,8 @@ Offsite solution with encfs and dropbox:
   director is, then the script automatically mounts and umounts before and after backup).
 - Example job resource:
 
-```Job {
+```
+Job {
     Name = lt-phpc01lin-c01-phpc01lin
     Run Before Job = "bacula_encfs_backup_bacula mount %i"
     Run After Job = "bacula_encfs_backup_bacula umount"
