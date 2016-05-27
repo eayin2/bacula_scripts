@@ -1,2 +1,3 @@
 dist
-helputils.egg-info
+bacula_scripts.egg-info
+.gitignore
