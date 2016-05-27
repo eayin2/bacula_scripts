@@ -29,7 +29,7 @@ Offsite solution with udev and e.g. usb-sata disk (e.g. plugin once a week and s
 - bacula_offsite_clean_and_umount (Meant to run after an offsite job, to clean the offsite storage while its mounted of
   purged volumes)
 - Example job resource:
-Job {
+`Job {
   Name = c01full-lt-test01-phserver01
   Pool = Full-LT
   Client  = phserver01-fd
@@ -59,13 +59,13 @@ Job {
     ORDER by j1.starttime;"
   Run After Job = "bacula_offsite_clean_and_umount.py phpc01e.your_remote_or_local_hostname."
 }
-
+`
 
 Offsite solution with encfs and dropbox:
 - bacula_encfs_backup.py (requires you to setup a dropbox and encfs dir within the dropbox on the system where the
   director is, then the script automatically mounts and umounts before and after backup).
 - Example job resource:
-  Job {
+`  Job {
     Name = lt-phpc01lin-c01-phpc01lin
     Run Before Job = "bacula_encfs_backup_bacula mount %i"
     Run After Job = "bacula_encfs_backup_bacula umount"
@@ -87,7 +87,7 @@ Offsite solution with encfs and dropbox:
     AlwaysOpen = no;
     Maximum Concurrent Jobs = 20;
   }
-
+`
 
 #### Configuration
 See example config in etc/bacula_scripts and modify for your needs. general_conf.py is needed by multiple scripts.
