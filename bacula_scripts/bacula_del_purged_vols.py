@@ -69,22 +69,10 @@ from subprocess import Popen, PIPE
 
 import psycopg2
 
-from helputils.core import log, format_exception, islocal, _isfile, find_mountpoint, remote_file_content
-
+from helputils.core import log, format_exception, islocal, _isfile, find_mountpoint, remote_file_content, systemd_services_up
 sys.path.append("/etc/bacula-scripts")
-
 from bacula_del_purged_vols_conf import offsite_mt, dry_run
-from general_conf import sd_conf, storages_conf, db_host, db_user, db_name
-
-# Checking if services are up
-services = ["bareos-dir", "postgresql"]
-for x in services:
-    p = Popen(["systemctl", "is-active", x], stdout=PIPE, stderr=PIPE)
-    out, err = p.communicate()
-    out = out.decode("utf-8").strip()
-    if "failed" == out:
-        log.info("Exiting, because dependent services are down.")
-        sys.exit()
+from general_conf import sd_conf, storages_conf, db_host, db_user, db_name, services
 
 
 def parse_vol(volume, hn=False):
@@ -157,7 +145,7 @@ def parse_conf(lines):
     return parsed
 
 
-def storagehostname(storages_conf, sn):
+def storagehostname(storages_conf_parsed, sn):
     """Parses stoarges.conf for storagename and returns address of storage"""
     for storage in storages_conf_parsed:
         if sn == storage["Name"]:
@@ -197,147 +185,146 @@ def del_backups(remove_backup):
             log.debug("out: %s, err: %s" % (out, err))
 
 
-try:
-    con = psycopg2.connect(database=db_name, user=db_user, host=db_host)
-    cur = con.cursor()
-    cur.execute("SELECT distinct m.volumename, s.name, m.volstatus, j.jobtdate, j.filesetid, j.clientid, j.level, "
-                "c.name, f.fileset, j.name, mt.mediatype "
-                "FROM media m, storage s, job j, jobmedia jm, fileset f, client c, mediatype mt "
-                "WHERE m.storageid=s.storageid "
-                "AND jm.mediaid=m.mediaid "
-                "AND jm.jobid=j.jobid "
-                "AND f.filesetid=j.filesetid " 
-                "AND j.clientid=c.clientid "
-                "AND mt.mediatype=m.mediatype;")
-    volumes = cur.fetchall()
-    cur.execute("SELECT distinct m.volumename, s.name "
-                "FROM media m, storage s "
-                "WHERE m.storageid=s.storageid "
-                "AND m.volstatus='Purged';")
-    purged_vols = cur.fetchall()
-except Exception as e:
-    log.error(format_exception(e))
-unpurged_backups = [x for x in volumes if x[2] != "Purged"]
-full_purged = list()
-diff_purged = list()
-inc_purged = list()
-remove_backup = list()
-with open(sd_conf, "r") as f:
-    sd_conf_parsed = parse_conf(f)
-with open(storages_conf, "r") as f:
-    storages_conf_parsed = parse_conf(f)
-log.info("\n\n\n\nSorting purged volumes to full_purged, diff_purged and inc_purged.\n\n")
-for volname, storagename in purged_vols:
-    hn = storagehostname(storages_conf_parsed, storagename)
-    if islocal(hn):
-        volpath = build_volpath(volname, storagename, sd_conf_parsed, storages_conf_parsed)
-    elif not islocal(hn):
-        remote_sd_conf = remote_file_content(hn, sd_conf)
-        remote_sd_conf_parsed = parse_conf(remote_sd_conf)
-        volpath = build_volpath(volname, storagename, remote_sd_conf_parsed, storages_conf_parsed, hn)
-    if not volpath:
-        log.info("Skipping this purged volume, because storage device is not mounted. %s:%s" % (hn, volpath))
-        continue
-    elif _isfile(volpath, hn) == False and volpath:
-        log.info("Deleting backup from catalog, because volume doesn't exist anymore: %s:%s" % (hn, volpath))
-        del_backups([(volpath, hn)])
-        continue
-    elif _isfile(volpath, hn):
-        vol_parsed = parse_vol(volpath, hn)
-        if vol_parsed:
-            cn, fn, ts, jl, jn, mt, pn = vol_parsed
+def main():
+    systemd_services_up(services)
+    try:
+        con = psycopg2.connect(database=db_name, user=db_user, host=db_host)
+        cur = con.cursor()
+        cur.execute("SELECT distinct m.volumename, s.name, m.volstatus, j.jobtdate, j.filesetid, j.clientid, j.level, "
+                    "c.name, f.fileset, j.name, mt.mediatype "
+                    "FROM media m, storage s, job j, jobmedia jm, fileset f, client c, mediatype mt "
+                    "WHERE m.storageid=s.storageid "
+                    "AND jm.mediaid=m.mediaid "
+                    "AND jm.jobid=j.jobid "
+                    "AND f.filesetid=j.filesetid " 
+                    "AND j.clientid=c.clientid "
+                    "AND mt.mediatype=m.mediatype;")
+        volumes = cur.fetchall()
+        cur.execute("SELECT distinct m.volumename, s.name "
+                    "FROM media m, storage s "
+                    "WHERE m.storageid=s.storageid "
+                    "AND m.volstatus='Purged';")
+        purged_vols = cur.fetchall()
+    except Exception as e:
+        log.error(format_exception(e))
+    unpurged_backups = [x for x in volumes if x[2] != "Purged"]
+    full_purged, diff_purged, inc_purged, remove_backup = [list() for x in range(4)]
+    with open(sd_conf, "r") as f:
+        sd_conf_parsed = parse_conf(f)
+    with open(storages_conf, "r") as f:
+        storages_conf_parsed = parse_conf(f)
+    log.info("\n\n\n\nSorting purged volumes to full_purged, diff_purged and inc_purged.\n\n")
+    for volname, storagename in purged_vols:
+        hn = storagehostname(storages_conf_parsed, storagename)
+        if islocal(hn):
+            volpath = build_volpath(volname, storagename, sd_conf_parsed, storages_conf_parsed)
+        elif not islocal(hn):
+            remote_sd_conf = remote_file_content(hn, sd_conf)
+            remote_sd_conf_parsed = parse_conf(remote_sd_conf)
+            volpath = build_volpath(volname, storagename, remote_sd_conf_parsed, storages_conf_parsed, hn)
+        if not volpath:
+            log.info("Skipping this purged volume, because storage device is not mounted. %s:%s" % (hn, volpath))
+            continue
+        elif _isfile(volpath, hn) == False and volpath:
+            log.info("Deleting backup from catalog, because volume doesn't exist anymore: %s:%s" % (hn, volpath))
+            del_backups([(volpath, hn)])
+            continue
+        elif _isfile(volpath, hn):
+            vol_parsed = parse_vol(volpath, hn)
+            if vol_parsed:
+                cn, fn, ts, jl, jn, mt, pn = vol_parsed
+            else:
+                continue
         else:
             continue
-    else:
-        continue
-    x1 = (volpath, cn, fn, ts, hn, jn, mt)
-    if mt in offsite_mt:  # This is a workaround for copy volumes, which don't store the right job level. Notice this
-        # works only if your pool names include the job level (e.g. full, inc or diff).
-        pnl = pn.lower()
-        if "full" in pnl:
-            jl = "F"
-        elif "diff" in pnl:
-            jl = "D"
-        elif "inc" in pnl:
-            jl = "I"
-    full_purged.append(x1) if jl == "F" else ""
-    diff_purged.append(x1) if jl == "D" else ""
-    inc_purged.append(x1) if jl == "I" else ""
-log.info("\n\n\n\nDeciding which purged full vols to delete")
-for volpath, cn, fn, backup_time, hn, jn, mt in full_purged:
-    #log.debug("\n\nDeciding which purged full vols to delete: cn: {0}, fn: {1}, backup_time: {2}, volpath: {3}".format(cn, fn, backup_time, volpath))
-    newer_full_backups = [x3 for x3 in unpurged_backups if x3[6] == "F" and x3[3] > backup_time and cn == x3[7] and
-                          fn == x3[8] and jn == x3[9] and mt == x3[10]]
-    if len(newer_full_backups) == 0:
-        log.info("Skipping and not removing {0}, because it's the newest full backup.".format(volpath))
-        continue
-    next_full_backup = min(newer_full_backups, key=lambda x: x[3])
-    newer_full_diff_backups = [x3 for x3 in unpurged_backups if x3[6] in ["F", "D"] and x3[3] > backup_time
-                               and cn == x3[7] and fn == x3[8] and jn == x3[9] and mt == x3[10]]
-    next_full_diff_backup = min(newer_full_diff_backups, key=lambda x: x[3])
-    inc_backups = [x3 for x3 in unpurged_backups if x3[6] == "I" and x3[3] > backup_time and x3[3] <
-                   next_full_diff_backup[3] and cn == x3[7] and fn == x3[8] and jn == x3[9] and mt == x3[10]]
-    # here we use next_full_backup
-    diff_backups = [x3 for x3 in unpurged_backups if x3[6] == "D" and x3[3] > backup_time and x3[3] <
-                    next_full_backup[3] and cn == x3[7] and fn == x3[8] and jn == x3[9] and mt == x3[10]]
-    full_backups = [x3 for x3 in unpurged_backups if x3[6] == "F" and cn == x3[7] and fn == x3[8] and jn == x3[9] and mt == x3[10]]
-    #log.info("newer_full_backups %s" % str(newer_full_backups))
-    #log.info("newer_full_diff_backups %s" % str(newer_full_diff_backups))
-    #log.info("next_full_diff_backup %s" % str(next_full_diff_backup))
-    #log.info("inc_backups %s" % inc_backups)
-    if len(inc_backups) > 0:
-        log.info("Not removing {0}, because there are still incremental backups dependent on it.".format(volpath))
-    elif len(diff_backups) > 0:
-        log.info("Not removing {0}, because there are still diff backups dependent on it.".format(volpath))
-        continue
-    elif len(full_backups) < 4:
-        log.info("Not removing {0}, because we have less than four full backups in total.".format(volpath))
-        continue
-    else:
-        remove_backup.append((volpath, hn))
-log.info("\n\n\n\nDeciding which purged incremental vols to delete")
-for volpath, cn, fn, backup_time, hn, jn, mt in inc_purged:
-    newer_full_diff_backups = [x3 for x3 in unpurged_backups if x3[6] in ["F", "D"] and x3[3] > backup_time and
-                               cn == x3[7] and fn == x3[8] and jn == x3[9] and mt == x3[10]]
-    older_full_diff_backups = [x3 for x3 in unpurged_backups if x3[6] in ["F", "D"] and x3[3] < backup_time and
-                               cn == x3[7] and fn == x3[8] and jn == x3[9] and mt == x3[10]]
-    inc_backups = list()
-    for x3 in unpurged_backups:
-        inc_filter = [x3[6] == "I", cn == x3[7] and fn == x3[8] and jn == x3[9] and mt == x3[10]]
-        if newer_full_diff_backups:
-            next_full_backup = min(newer_full_diff_backups, key=lambda x: x[3])
-            inc_filter.append(x3[3] < next_full_backup[3])
-        if older_full_diff_backups:
-            prev_full_backup = max(older_full_diff_backups, key=lambda x: x[3])
-            inc_filter.append(x3[3] > prev_full_backup[3])
-        if all(inc_filter):
-            inc_backups.append(x3)
-    if len(inc_backups) > 0:
-        log.info("Not removing {0}, because there are still chained inc backups that are not purged.".format(volpath))
-        continue
-    else:
-        remove_backup.append((volpath, hn))
-log.info("\n\n\n\nDeciding which purged diff vols to delete")
-for volpath, cn, fn, backup_time, hn, jn, mt in diff_purged:
-    newer_full_or_diff_backups = [x3 for x3 in unpurged_backups if x3[6] in ["F", "D"] and x3[3] > backup_time and
-                                  cn == x3[7] and fn == x3[8] and jn == x3[9] and mt == x3[10]]
-    if newer_full_or_diff_backups:
-        next_full_or_diff_backup = min(newer_full_or_diff_backups, key=lambda x: x[3])
+        x1 = (volpath, cn, fn, ts, hn, jn, mt)
+        if mt in offsite_mt:  # This is a workaround for copy volumes, which don't store the right job level. Notice this
+            # works only if your pool names include the job level (e.g. full, inc or diff).
+            pnl = pn.lower()
+            if "full" in pnl:
+                jl = "F"
+            elif "diff" in pnl:
+                jl = "D"
+            elif "inc" in pnl:
+                jl = "I"
+        full_purged.append(x1) if jl == "F" else ""
+        diff_purged.append(x1) if jl == "D" else ""
+        inc_purged.append(x1) if jl == "I" else ""
+    log.info("\n\n\n\nDeciding which purged full vols to delete")
+    for volpath, cn, fn, backup_time, hn, jn, mt in full_purged:
+        #log.debug("\n\nDeciding which purged full vols to delete: cn: {0}, fn: {1}, backup_time: {2}, volpath: {3}".format(cn, fn, backup_time, volpath))
+        newer_full_backups = [x3 for x3 in unpurged_backups if x3[6] == "F" and x3[3] > backup_time and cn == x3[7] and
+                              fn == x3[8] and jn == x3[9] and mt == x3[10]]
+        if len(newer_full_backups) == 0:
+            log.info("Skipping and not removing {0}, because it's the newest full backup.".format(volpath))
+            continue
+        next_full_backup = min(newer_full_backups, key=lambda x: x[3])
+        newer_full_diff_backups = [x3 for x3 in unpurged_backups if x3[6] in ["F", "D"] and x3[3] > backup_time
+                                   and cn == x3[7] and fn == x3[8] and jn == x3[9] and mt == x3[10]]
+        next_full_diff_backup = min(newer_full_diff_backups, key=lambda x: x[3])
         inc_backups = [x3 for x3 in unpurged_backups if x3[6] == "I" and x3[3] > backup_time and x3[3] <
-                       next_full_or_diff_backup[3] and cn == x3[7] and fn == x3[8] and jn == x3[9] and mt == x3[10]]
-        diff_backups = [x3 for x3 in unpurged_backups if x3[6] == "D" and cn == x3[7] and fn == x3[8] and jn == x3[9] and mt == x3[10]]
-        #log.info("newer_full_or_diff_backups %s" % str(newer_full_or_diff_backups))
-        #log.info("next_full_or_diff_backup %s" % str(next_full_or_diff_backup))
+                       next_full_diff_backup[3] and cn == x3[7] and fn == x3[8] and jn == x3[9] and mt == x3[10]]
+        # here we use next_full_backup
+        diff_backups = [x3 for x3 in unpurged_backups if x3[6] == "D" and x3[3] > backup_time and x3[3] <
+                        next_full_backup[3] and cn == x3[7] and fn == x3[8] and jn == x3[9] and mt == x3[10]]
+        full_backups = [x3 for x3 in unpurged_backups if x3[6] == "F" and cn == x3[7] and fn == x3[8] and jn == x3[9] and mt == x3[10]]
+        #log.info("newer_full_backups %s" % str(newer_full_backups))
+        #log.info("newer_full_diff_backups %s" % str(newer_full_diff_backups))
+        #log.info("next_full_diff_backup %s" % str(next_full_diff_backup))
         #log.info("inc_backups %s" % inc_backups)
         if len(inc_backups) > 0:
             log.info("Not removing {0}, because there are still incremental backups dependent on it.".format(volpath))
+        elif len(diff_backups) > 0:
+            log.info("Not removing {0}, because there are still diff backups dependent on it.".format(volpath))
             continue
-        elif len(diff_backups) < 2:
+        elif len(full_backups) < 4:
             log.info("Not removing {0}, because we have less than four full backups in total.".format(volpath))
             continue
         else:
             remove_backup.append((volpath, hn))
-log.info("\n\n\n\nDecisions made. Initating deletion.")
-if len(remove_backup) == 0:
-    log.info("Nothing to delete")
-del_backups(remove_backup)
+    log.info("\n\n\n\nDeciding which purged incremental vols to delete")
+    for volpath, cn, fn, backup_time, hn, jn, mt in inc_purged:
+        newer_full_diff_backups = [x3 for x3 in unpurged_backups if x3[6] in ["F", "D"] and x3[3] > backup_time and
+                                   cn == x3[7] and fn == x3[8] and jn == x3[9] and mt == x3[10]]
+        older_full_diff_backups = [x3 for x3 in unpurged_backups if x3[6] in ["F", "D"] and x3[3] < backup_time and
+                                   cn == x3[7] and fn == x3[8] and jn == x3[9] and mt == x3[10]]
+        inc_backups = list()
+        for x3 in unpurged_backups:
+            inc_filter = [x3[6] == "I", cn == x3[7] and fn == x3[8] and jn == x3[9] and mt == x3[10]]
+            if newer_full_diff_backups:
+                next_full_backup = min(newer_full_diff_backups, key=lambda x: x[3])
+                inc_filter.append(x3[3] < next_full_backup[3])
+            if older_full_diff_backups:
+                prev_full_backup = max(older_full_diff_backups, key=lambda x: x[3])
+                inc_filter.append(x3[3] > prev_full_backup[3])
+            if all(inc_filter):
+                inc_backups.append(x3)
+        if len(inc_backups) > 0:
+            log.info("Not removing {0}, because there are still chained inc backups that are not purged.".format(volpath))
+            continue
+        else:
+            remove_backup.append((volpath, hn))
+    log.info("\n\n\n\nDeciding which purged diff vols to delete")
+    for volpath, cn, fn, backup_time, hn, jn, mt in diff_purged:
+        newer_full_or_diff_backups = [x3 for x3 in unpurged_backups if x3[6] in ["F", "D"] and x3[3] > backup_time and
+                                      cn == x3[7] and fn == x3[8] and jn == x3[9] and mt == x3[10]]
+        if newer_full_or_diff_backups:
+            next_full_or_diff_backup = min(newer_full_or_diff_backups, key=lambda x: x[3])
+            inc_backups = [x3 for x3 in unpurged_backups if x3[6] == "I" and x3[3] > backup_time and x3[3] <
+                           next_full_or_diff_backup[3] and cn == x3[7] and fn == x3[8] and jn == x3[9] and mt == x3[10]]
+            diff_backups = [x3 for x3 in unpurged_backups if x3[6] == "D" and cn == x3[7] and fn == x3[8] and jn == x3[9] and mt == x3[10]]
+            #log.info("newer_full_or_diff_backups %s" % str(newer_full_or_diff_backups))
+            #log.info("next_full_or_diff_backup %s" % str(next_full_or_diff_backup))
+            #log.info("inc_backups %s" % inc_backups)
+            if len(inc_backups) > 0:
+                log.info("Not removing {0}, because there are still incremental backups dependent on it.".format(volpath))
+                continue
+            elif len(diff_backups) < 2:
+                log.info("Not removing {0}, because we have less than four full backups in total.".format(volpath))
+                continue
+            else:
+                remove_backup.append((volpath, hn))
+    log.info("\n\n\n\nDecisions made. Initating deletion.")
+    if len(remove_backup) == 0:
+        log.info("Nothing to delete")
+    del_backups(remove_backup)

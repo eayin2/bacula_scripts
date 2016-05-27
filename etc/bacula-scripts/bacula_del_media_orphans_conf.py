@@ -1,15 +1,14 @@
-# bacula-del-catalog-jobids.py
-#
+# bacula-del-media-orphans.py
+#                                                                      
+#                                                                                                                                                                                              
 # Description:
-# Deletes only catalog entries (not files) with `echo delete jobid= | bconsole` for all jobifs
-# that are selected in the sql query.
-
-# Config:
-dry_run = True
-#dry_run = False
-
-# Modify the query for your needs. In this example all jobs which name begins with c01 or which have the 
-# string "-c01-" within their name will be selected and then deleted from the catalog.
-query = "SELECT jobid, name FROM job j "\
-        "WHERE j.name LIKE 'c01%' "\
-        "OR j.name LIKE '%-c01-%';"
+#                                                                                                                                            
+# Deletes all associated catalog entries of those media entries, which backup volume doesn't exist anymore.
+#                                                                                                                                            
+# Set dry_run = True to print orphanned entries without deleting them, else set dry_run=False.
+#                                                                                                                                            
+dry_run = False
+#dry_run = True
+del_orphan_log = "/var/log/bareos/deleted_orphans.log"
+verbose = True
+#verbose = False  

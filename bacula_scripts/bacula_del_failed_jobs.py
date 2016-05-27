@@ -19,42 +19,31 @@ import psycopg2
 import sys
 from subprocess import Popen, PIPE
 
-from helputils.core import format_exception
-
+from helputils.core import format_exception, systemd_services_up
 sys.path.append("/etc/bacula-scripts")
-
 from bacula_del_failed_jobs_conf import dry_run
-from general_conf import db_host, db_user, db_name
-
-# Checking if services are up
-services = ['bareos-dir', 'postgresql']
-for x in services:
-    p = Popen(['systemctl', 'is-active', x], stdout=PIPE, stderr=PIPE)
-    out, err = p.communicate()
-    out = out.decode("utf-8").strip()
-    if "failed" == out:
-        print("Exiting, because dependent services are down.")
-        sys.exit()
+from general_conf import db_host, db_user, db_name, services
 
 
-try:
-    con = psycopg2.connect(database=db_name, user=db_user, host=db_host)
-    cur = con.cursor()
-    cur.execute("SELECT DISTINCT j.jobid, m.volumename FROM job j, jobmedia jm, media m WHERE j.JobStatus "
-                "IN ('E', 'A', 'f') AND j.jobid=jm.jobid AND jm.mediaid=m.mediaid;")
-    failed_job_jm_media = cur.fetchall()
-except Exception as e:
-    print(format_exception(e))
-for jobid, volname in failed_job_jm_media:
-    print("Deleting catalog entries for job (id: %s, volname: %s)." (jobid, volname))
-    if not dry_run:
-        p1 = Popen(["echo", "delete volume=%s yes" % volname], stdout=PIPE)
-        p2 = Popen(["bconsole"], stdin=p1.stdout, stdout=PIPE)
-        p1.stdout.close()
-        out, err = p2.communicate()
-        print(out,err)
-        p1 = Popen(["echo", "delete volume=%s yes" % tuple[0]], stdout=PIPE)
-        p2 = Popen(["bconsole"], stdin=p1.stdout, stdout=PIPE)
-        p1.stdout.close()
-        out, err = p2.communicate()
-        print(out,err)
+def main():
+    systemd_services_up(services)
+    try:
+        con = psycopg2.connect(database=db_name, user=db_user, host=db_host)
+        cur = con.cursor()
+        cur.execute("SELECT DISTINCT j.jobid, m.volumename FROM job j, jobmedia jm, media m WHERE j.JobStatus "
+                    "IN ('E', 'A', 'f') AND j.jobid=jm.jobid AND jm.mediaid=m.mediaid;")
+        failed_job_jm_media = cur.fetchall()
+    except Exception as e:
+        log.error(format_exception(e))
+    for jobid, volname in failed_job_jm_media:
+        log.info("Deleting catalog entries for job (id: %s, volname: %s)." % (jobid, volname))
+        if not dry_run:
+            p1 = Popen(["echo", "delete volume=%s yes" % volname], stdout=PIPE)
+            p2 = Popen(["bconsole"], stdin=p1.stdout, stdout=PIPE)
+            p1.stdout.close()
+            out, err = p2.communicate()
+            p1 = Popen(["echo", "delete volume=%s yes" % tuple[0]], stdout=PIPE)
+            p2 = Popen(["bconsole"], stdin=p1.stdout, stdout=PIPE)
+            p1.stdout.close()
+            out, err = p2.communicate()
+            log.debug("out: %s, err: %s" % (out, err))

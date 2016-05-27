@@ -13,24 +13,14 @@ from subprocess import Popen, PIPE
 import psycopg2
 
 from gymail.core import send_mail
-from helputils.core import format_exception
-
+from helputils.core import format_exception, systemd_services_up
 sys.path.append("/etc/bacula-scripts")
 from bacula_offsite_backup_age_watch_conf import max_offsite_age, jobnames
-from general_conf import db_host, db_user, db_name
+from general_conf import db_host, db_user, db_name, services
 
 # Building our parameterized sql command
 placeholder = "%s"
 jobnames_placeholders = ', '.join([placeholder] * len(jobnames))
-# Checking if services are up
-services = ['postgresql']
-for x in services:
-    p = Popen(['systemctl', 'is-active', x], stdout=PIPE, stderr=PIPE)
-    out, err = p.communicate()
-    out = out.decode("utf-8").strip()
-    if "failed" == out:
-        print("Exiting, because dependent services are down.")
-        sys.exit()
 
 
 def newest_offsite_backup():
@@ -55,14 +45,16 @@ def newest_offsite_backup():
         return None
 
 
-offsite_ts = newest_offsite_backup()
-if offsite_ts:
-    current_ts = int(time.time())
-    offsite_days = (offsite_ts - current_ts) / (60*60*24)
-    if offsite_days > max_offsite_days:
-        msg = "Offsite backups are too old %s" % (host, mp)
-        send_mail(event="error", subject=os.path.basename(__file__), message=msg)
+def main():
+    systemd_services_up(services)
+    offsite_ts = newest_offsite_backup()
+    if offsite_ts:
+        current_ts = int(time.time())
+        offsite_days = (offsite_ts - current_ts) / (60*60*24)
+        if offsite_days > max_offsite_days:
+            msg = "Offsite backups are too old %s" % (host, mp)
+            send_mail(event="error", subject=os.path.basename(__file__), message=msg)
+        else:
+            print("Last copy job from %s is younger than %s days" % max_offsite_days)
     else:
-        print("Last copy job from %s is younger than %s days" % max_offsite_days)
-else:
-    print("No copy backup found")
+        print("No copy backup found")

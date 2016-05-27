@@ -16,26 +16,15 @@ from subprocess import Popen, PIPE
 
 import psycopg2
 
-from helputils.core import format_exception, find_mountpoint
+from helputils.core import format_exception, find_mountpoint, systemd_services_up
 
 sys.path.append("/etc/bacula-scripts")
-
 from bacula_del_jobs_conf import dry_run, storagenames, storagenames_del_only_catalog_entries, jobnames, filters
-from general_conf import db_host, db_user, db_name, sd_conf, storages_conf
+from general_conf import db_host, db_user, db_name, sd_conf, storages_conf, services
 
 placeholder = "%s" # Building our parameterized sql command
 jobnames_placeholders = ', '.join([placeholder] * len(jobnames))
 storagenames_placeholders = ', '.join([placeholder] * len(storagenames))
-
-# Checking if services are up
-services = ['bareos-dir', 'postgresql']
-for x in services:
-    p = Popen(['systemctl', 'is-active', x], stdout=PIPE, stderr=PIPE)
-    out, err = p.communicate()
-    out = out.decode("utf-8").strip()
-    if "failed" == out:
-        print("Exiting, because dependent services are down.")
-        sys.exit()
 
 
 def parse_conf(lines):
@@ -100,37 +89,41 @@ def del_backups(b):
             p1.stdout.close()
             out, err = p2.communicate()
             print(out, err)
-try:
-    con = psycopg2.connect(database=db_name, user=db_user, host=db_host)
-    cur = con.cursor()
-    query = "select distinct j.jobid, j.name, m.volumename, s.name from job j, media m, jobmedia jm, storage s " \
-            "WHERE m.mediaid=jm.mediaid " \
-            "AND j.jobid=jm.jobid " \
-            "AND s.storageid=m.storageid "
-    if filters == "jobname":
-        data = jobnames
-        query = query + " AND j.name IN (%s);" % (jobnames_placeholders)
-    elif filters == "or_both":
-        data = storagenames + jobnames
-        query = query + " AND (s.name IN (%s) OR j.name IN (%s));" % (storagenames_placeholders, jobnames_placeholders)
-    elif filters == "and_both":
-        data = storagenames + jobnames
-        query = query + " AND (s.name IN (%s) OR j.name IN (%s));" % (storagenames_placeholders, jobnames_placeholders)
-    elif filters == "storage":
-        data = storagenames
-        query = query + " AND s.name IN (%s);" % (storagenames_placeholders)
-    else:
-        log.error("Wrong filter or filter not defined.")
-        sys.exit()
-    print("Query: %s %s" % (query, str(data)))
-    cur.execute(query, data)
-    del_job_media_jm_storage = cur.fetchall()
-except Exception as e:
-    print(format_exception(e))
-with open (sd_conf, 'r') as f:
-    sd_conf_parsed = parse_conf(f)
-with open (storages_conf, 'r') as f:
-    storages_conf_parsed = parse_conf(f)
-del_job_media_jm_storage = [(w, x, build_volpath(y, z, sd_conf_parsed, storages_conf_parsed), z) for w, x, y, z in
-                            del_job_media_jm_storage if build_volpath(y, z, sd_conf_parsed, storages_conf_parsed)]
-del_backups(del_job_media_jm_storage)
+
+
+def main():
+    systemd_services_up(services)
+    try:
+        con = psycopg2.connect(database=db_name, user=db_user, host=db_host)
+        cur = con.cursor()
+        query = "select distinct j.jobid, j.name, m.volumename, s.name from job j, media m, jobmedia jm, storage s " \
+                "WHERE m.mediaid=jm.mediaid " \
+                "AND j.jobid=jm.jobid " \
+                "AND s.storageid=m.storageid "
+        if filters == "jobname":
+            data = jobnames
+            query = query + " AND j.name IN (%s);" % (jobnames_placeholders)
+        elif filters == "or_both":
+            data = storagenames + jobnames
+            query = query + " AND (s.name IN (%s) OR j.name IN (%s));" % (storagenames_placeholders, jobnames_placeholders)
+        elif filters == "and_both":
+            data = storagenames + jobnames
+            query = query + " AND (s.name IN (%s) OR j.name IN (%s));" % (storagenames_placeholders, jobnames_placeholders)
+        elif filters == "storage":
+            data = storagenames
+            query = query + " AND s.name IN (%s);" % (storagenames_placeholders)
+        else:
+            log.error("Wrong filter or filter not defined.")
+            sys.exit()
+        print("Query: %s %s" % (query, str(data)))
+        cur.execute(query, data)
+        del_job_media_jm_storage = cur.fetchall()
+    except Exception as e:
+        print(format_exception(e))
+    with open (sd_conf, 'r') as f:
+        sd_conf_parsed = parse_conf(f)
+    with open (storages_conf, 'r') as f:
+        storages_conf_parsed = parse_conf(f)
+    del_job_media_jm_storage = [(w, x, build_volpath(y, z, sd_conf_parsed, storages_conf_parsed), z) for w, x, y, z in
+                                del_job_media_jm_storage if build_volpath(y, z, sd_conf_parsed, storages_conf_parsed)]
+    del_backups(del_job_media_jm_storage)

@@ -12,7 +12,6 @@ from subprocess import Popen, PIPE
 import psycopg2
 
 sys.path.append("/etc/bacula-scripts")
-
 from bacula_find_backups_bls_conf import backup_dir, client, fileset
 
 
@@ -42,6 +41,7 @@ def parse_vol(volume):
     return (cn, fn, ts, jl)
 
 
-for root, dirs, files in os.walk(backup_dir):
-    for file in files:
-        parse_vol(os.path.join(root, file))
+def main():
+    for root, dirs, files in os.walk(backup_dir):
+        for file in files:
+            parse_vol(os.path.join(root, file))

@@ -16,20 +16,10 @@ from subprocess import Popen, PIPE
 
 import psycopg2
 
-from helputils.core import format_exception, log
-
+from helputils.core import format_exception, log, systemd_services_up
+sys.path.append("/etc/bacula-scripts")
 from bacula_del_catalog_jobids_conf import dry_run, query
-from general_conf import db_host, db_user, db_name
-
-# Checking if services are up
-services = ['bareos-dir', 'postgresql']
-for x in services:
-    p = Popen(['systemctl', 'is-active', x], stdout=PIPE, stderr=PIPE)
-    out, err = p.communicate()
-    out = out.decode("utf-8").strip()
-    if "failed" == out:
-        print("Exiting, because dependent services are down.")
-        sys.exit()
+from general_conf import db_host, db_user, db_name, services
 
 
 def del_from_catalog(ji):
@@ -42,13 +32,15 @@ def del_from_catalog(ji):
             p1.stdout.close()
             out, err = p2.communicate()
             log.info("out %s, err %s" % (out, err))
-            
+        
 
-try:
-    con = psycopg2.connect(database=db_name, user=db_user, host=db_host)
-    cur = con.cursor()
-    cur.execute(query)
-    del_jobids = cur.fetchall()
-except Exception as e:
-    print(format_exception(e))
-del_from_catalog(del_jobids)
+def main():
+    systemd_services_up(services)
+    try:
+        con = psycopg2.connect(database=db_name, user=db_user, host=db_host)
+        cur = con.cursor()
+        cur.execute(query)
+        del_jobids = cur.fetchall()
+    except Exception as e:
+        print(format_exception(e))
+    del_from_catalog(del_jobids)

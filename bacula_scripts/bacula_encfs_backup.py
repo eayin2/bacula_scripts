@@ -65,12 +65,13 @@ def encfs_mount(jobid=None):
         sys.exit()
 
 
-arg1 = sys.argv[1]
-if arg1 == "mount":
-    if len(sys.argv) == 3:
-        jobid = sys.argv[2]
-        encfs_mount(jobid)
-    else:
-        encfs_mount()
-elif arg1 == "umount":
-    umount()
+def main():
+    arg1 = sys.argv[1]
+    if arg1 == "mount":
+        if len(sys.argv) == 3:
+            jobid = sys.argv[2]
+            encfs_mount(jobid)
+        else:
+            encfs_mount()
+    elif arg1 == "umount":
+        umount()

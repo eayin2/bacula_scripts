@@ -25,13 +25,13 @@ import sys
 from subprocess import Popen, PIPE
 
 from helputils.core import log
-
 sys.path.append("/etc/bacula-scripts")
-
 from bacula_offsite_clean_and_umount_conf import del_purged_vols_bacula_bin, offsite_udev_bacula_bin
 
-p1 = Popen([del_purged_vols_bacula_bin], stdout=PIPE, stderr=PIPE)
-log.info(p1.communicate())
+
+def main():
+    p1 = Popen([del_purged_vols_bacula_bin], stdout=PIPE, stderr=PIPE)
+    log.info(p1.communicate())
 
 # Omitting umounting because copy job create a job for each backup it finds to copy to, so offsite disk has to be mounted
 #cmd = ["sudo", offsite_udev_bacula_bin, "umount"]
