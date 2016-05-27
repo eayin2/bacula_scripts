@@ -19,7 +19,7 @@ import psycopg2
 import sys
 from subprocess import Popen, PIPE
 
-from helputils.core import format_exception, systemd_services_up
+from helputils.core import format_exception, systemd_services_up, log
 sys.path.append("/etc/bacula-scripts")
 from bacula_del_failed_jobs_conf import dry_run
 from general_conf import db_host, db_user, db_name, services
