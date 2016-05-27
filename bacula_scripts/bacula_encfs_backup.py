@@ -22,22 +22,12 @@ import sys
 import subprocess
 from subprocess import PIPE
 
+from helputils.core import umount
 sys.path.append("/etc/bacula-scripts")
 from bacula_encfs_backup_conf import encfs_passphrase, encfs_dir, mount_dir, cmd_mount, cmd_password, cmd_umount, cmd_lazy_umount
 
 cmd_mount = ["encfs", "--stdinpass", encfs_dir, mount_dir]
 cmd_password = ["echo", encfs_passphrase]
-cmd_umount = ["fusermount", "-u", mount_dir]
-cmd_lazy_umount = ["fusermount", "-z", "-u", mount_dir]
-
-
-def umount(lazy=False):
-    # Run After backup
-    cmd = cmd_lazy_umount if lazy else cmd_umount
-    p1 = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
-    out, err = p1.communicate()
-    print(out, err)
-    print("Unmounted encfs")
 
 
 def cancle_job(jobid):
@@ -49,7 +39,7 @@ def cancle_job(jobid):
         print(p2.communicate())
 
 
-def mount(jobid=None):
+def encfs_mount(jobid=None):
     if os.path.ismount(mount_dir):
         print("Already mounted. Trying to unmount")
         umount()
@@ -79,8 +69,8 @@ arg1 = sys.argv[1]
 if arg1 == "mount":
     if len(sys.argv) == 3:
         jobid = sys.argv[2]
-        mount(jobid)
+        encfs_mount(jobid)
     else:
-        mount()
+        encfs_mount()
 elif arg1 == "umount":
     umount()

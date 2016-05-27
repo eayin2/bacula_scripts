@@ -1,5 +1,5 @@
 #!/usr/bin/python3
--*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """ bacula-del-purged-vols.py
 Description:
 Removing volumes and catalog entries for backups that have been marked 'Purged' based on deletion rules. Script's

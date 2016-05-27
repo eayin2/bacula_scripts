@@ -4,7 +4,7 @@
 Description:
 Deletes all catalog entries that are associated to the given storage_name and also tries to delete the volume on
 disk. Notice that it deletes volumes matching given storage name OR give job names.
-This is only intended to run when you really want to delete something specifically.
+This is only intended to run when you really want to delete something specifically. Doesn't work for remote storage devices.
 """
 import re
 import os
@@ -16,10 +16,11 @@ from subprocess import Popen, PIPE
 
 import psycopg2
 
+from helputils.core import format_exception, find_mountpoint
+
 sys.path.append("/etc/bacula-scripts")
 
-from bacula_del_jobs_conf import (dry_run, sd_conf, storages_conf, storagenames, storagenames_del_only_catalog_entries,
-                                 jobnames, filters)
+from bacula_del_jobs_conf import dry_run, storagenames, storagenames_del_only_catalog_entries, jobnames, filters
 from general_conf import db_host, db_user, db_name, sd_conf, storages_conf
 
 placeholder = "%s" # Building our parameterized sql command
@@ -35,26 +36,6 @@ for x in services:
     if "failed" == out:
         print("Exiting, because dependent services are down.")
         sys.exit()
-
-
-def find_mount_point(path):
-    path = os.path.abspath(path)
-    while not os.path.ismount(path):
-        path = os.path.dirname(path)
-    return path
-
-
-def format_exception(e):
-    """Usage: except Exception as e:
-                  log.error(format_exception(e)) """
-    exception_list = traceback.format_stack()
-    exception_list = exception_list[:-2]
-    exception_list.extend(traceback.format_tb(sys.exc_info()[2]))
-    exception_list.extend(traceback.format_exception_only(sys.exc_info()[0], sys.exc_info()[1]))
-    exception_str = 'Traceback (most recent call last):\n'
-    exception_str += ''.join(exception_list)
-    exception_str = exception_str[:-1]  # Removing the last \n
-    return exception_str
 
 
 def parse_conf(lines):
@@ -95,7 +76,7 @@ def build_volpath(volname, storagename, sd_conf_parsed, storages_parsed):
             for device in sd_conf_parsed:
                 if devicename == device['Name']:
                     volpath = os.path.join(device['Archive Device'], volname)
-                    if (not find_mount_point(device["Archive Device"]) == "/" or storagename in
+                    if (not find_mountpoint(device["Archive Device"]) == "/" or storagename in
                     storagenames_del_only_catalog_entries):
                         return volpath
                     else:

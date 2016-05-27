@@ -2,14 +2,14 @@ from distutils.core import setup
 from setuptools import find_packages
 
 setup(
-    name="bacula-scripts",
-    version="0.1.0",
+    name="bacula_scripts",
+    version="0.1.3",
     author="eayin2",
     author_email="eayin2 at gmail dot com",
     packages=find_packages(),
-    url="https://github.com/eayin2/bacula-scripts",
+    url="https://github.com/eayin2/bacula_scripts",
     description="Bunch of bacula scripts. Includes also scripts to realize offsite backup solution.",
-    install_requires=["gymail", "helputils"],
+    install_requires=["gymail", "helputils", "psycopg2"],
     entry_points={
         'console_scripts': [
             'bacula_del_jobs = bacula_scripts.bacula_del_jobs',

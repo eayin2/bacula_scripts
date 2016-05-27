@@ -28,7 +28,7 @@ from helputils.core import log
 
 sys.path.append("/etc/bacula-scripts")
 
-from bacula_del_purged_vols_conf import del_purged_vols_bacula_bin, offsite_udev_bacula_bin
+from bacula_offsite_clean_and_umount_conf import del_purged_vols_bacula_bin, offsite_udev_bacula_bin
 
 p1 = Popen([del_purged_vols_bacula_bin], stdout=PIPE, stderr=PIPE)
 log.info(p1.communicate())

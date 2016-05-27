@@ -13,7 +13,7 @@ import psycopg2
 
 sys.path.append("/etc/bacula-scripts")
 
-from bacula_del_purged_vols_conf import backup_dir, client, fileset
+from bacula_find_backups_bls_conf import backup_dir, client, fileset
 
 
 def parse_vol(volume):

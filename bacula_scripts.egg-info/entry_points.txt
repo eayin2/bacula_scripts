@@ -1,0 +1,10 @@
+[console_scripts]
+bacula_del_catalog_jobids = bacula_scripts.bacula_del_catalog_jobids
+bacula_del_failed_jobs = bacula_scripts.bacula_del_failed_jobs.py
+bacula_del_jobs = bacula_scripts.bacula_del_jobs
+bacula_del_media_orphans = bacula_scripts.bacula_del_media_orphans
+bacula_del_purged_vols = bacula_scripts.bacula_del_purged_vols
+bacula_find_backups_bls = bacula_scripts.bacula_find_backups_bls
+bacula_offsite_backup_age_watch = bacula_scripts.bacula_offsite_backup_age_watch
+bacula_offsite_clean_and_umount = bacula_scripts.bacula_offsite_clean_and_umount
+

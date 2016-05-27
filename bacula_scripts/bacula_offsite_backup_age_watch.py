@@ -13,6 +13,7 @@ from subprocess import Popen, PIPE
 import psycopg2
 
 from gymail.core import send_mail
+from helputils.core import format_exception
 
 sys.path.append("/etc/bacula-scripts")
 from bacula_offsite_backup_age_watch_conf import max_offsite_age, jobnames
@@ -30,18 +31,6 @@ for x in services:
     if "failed" == out:
         print("Exiting, because dependent services are down.")
         sys.exit()
-
-
-def format_exception(e):
-    """Usage: except Exception as e: log.error(format_exception(e)) """
-    exception_list = traceback.format_stack()
-    exception_list = exception_list[:-2]
-    exception_list.extend(traceback.format_tb(sys.exc_info()[2]))
-    exception_list.extend(traceback.format_exception_only(sys.exc_info()[0], sys.exc_info()[1]))
-    exception_str = 'Traceback (most recent call last):\n'
-    exception_str += ''.join(exception_list)
-    exception_str = exception_str[:-1]  # Removing the last \n
-    return exception_str
 
 
 def newest_offsite_backup():
