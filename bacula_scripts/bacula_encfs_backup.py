@@ -22,9 +22,9 @@ import sys
 import subprocess
 from subprocess import PIPE
 
-from helputils.core import umount
+from helputils.core import umount, log
 sys.path.append("/etc/bacula-scripts")
-from bacula_encfs_backup_conf import encfs_passphrase, encfs_dir, mount_dir, cmd_mount, cmd_password, cmd_umount, cmd_lazy_umount
+from bacula_encfs_backup_conf import encfs_passphrase, encfs_dir, mount_dir, cmd_mount, cmd_password
 
 cmd_mount = ["encfs", "--stdinpass", encfs_dir, mount_dir]
 cmd_password = ["echo", encfs_passphrase]
@@ -32,35 +32,34 @@ cmd_password = ["echo", encfs_passphrase]
 
 def cancle_job(jobid):
     if jobid:
-        print(jobid)
+        log.debug(jobid)
         p1 = subprocess.Popen(["echo", "cancel", "jobid=%s" % jobid, "yes"], stdout=PIPE, stderr=PIPE)
         p2 = subprocess.Popen(["bconsole"], stdin=p1.stdout, stdout=PIPE, stderr=PIPE)
         p1.stdout.close()
-        print(p2.communicate())
+        log.debug(p2.communicate())
 
 
 def encfs_mount(jobid=None):
     if os.path.ismount(mount_dir):
-        print("Already mounted. Trying to unmount")
-        umount()
+        log.info("Already mounted. Trying to unmount")
+        umount(mount_dir)
         if os.path.ismount(mount_dir):
-            print("Still mounted. Trying lazy unmount.")
+            log.warning("Still mounted. Trying lazy unmount.")
             umount(lazy=True)
             if os.path.ismount(mount_dir):
-                print("Couldn't be unmounted. Canceling job.")
+                log.error("Couldn't be unmounted. Canceling job.")
                 cancle_job(jobid)
-                return
-    else:
-        p1 = subprocess.Popen(cmd_mount, stdin=PIPE)
-        out, err = p1.communicate(input="{0}\n".format(encfs_passphrase).encode())
-        if p1.returncode != 0:
-            print("Rsync error: %s\n%s" % (out, err))
-            cancle_job(jobid)
-            return
-        print(out, err)
-        print("Mounted encfs")
+                sys.exit()
+    p1 = subprocess.Popen(cmd_mount, stdin=PIPE)
+    out, err = p1.communicate(input="{0}\n".format(encfs_passphrase).encode())
+    if p1.returncode != 0:
+        log.error("failed: out: %s err: %s" % (out, err))
+        cancle_job(jobid)
+        return
+    log.debug("out: %s, err %s" % (out, err))
+    log.info("Mounted encfs")
     if not os.path.ismount(mount_dir):
-        print("(E) encfs couldn't be mounted. Exiting %s" % err)
+        log.error("(E) encfs couldn't be mounted. Exiting %s")
         cancle_job(jobid)
         sys.exit()
 
@@ -74,4 +73,4 @@ def main():
         else:
             encfs_mount()
     elif arg1 == "umount":
-        umount()
+        umount(mount_dir)

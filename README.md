@@ -18,10 +18,75 @@ Meant for recurring execution (e.g. in cron.weekly) to clean the catalog for red
 - bacula_del_purged_vols (will not delete a volume if there's an unpurged volume within the backup chain of it)
 - bacula_del_failed_jobs (removes failed jobs in the catalog to keep it a little cleaner)
 
+Offsite solution with udev and e.g. usb-sata disk (e.g. plugin once a week and store it at another room or place):
+  Add udev rule to run bacula_offsite_udev.py on the system where you plug in your offsite disk (can be remote or also
+  locally where the director is). See udev rule example in bacula_scripts/etc/udev/rules.d/
+  - bacula_offsite_udev.py
+
+  On director you run bacula_offsite_clean_and_umount with `Run after job` and bacula_offsite_backup_age_watch in e.g. cron.weekly
 - bacula_offsite_backup_age_watch (warns you if your latest offsite backup is older than x days, as specified in its
   config. It looks in the catalog for the backups of the given jobname)
 - bacula_offsite_clean_and_umount (Meant to run after an offsite job, to clean the offsite storage while its mounted of
   purged volumes)
+- Example job resource:
+Job {
+  Name = c01full-lt-test01-phserver01
+  Pool = Full-LT
+  Client  = phserver01-fd
+  Jobdefs = copy
+  # This is the read storage, i.e. where to read the backups vols to copy from
+  Storage = "sphserver01"
+  Maximum Concurrent Jobs = 4
+  Selection Type = "SQLQuery"
+  Selection Pattern = "
+    SELECT DISTINCT j1.jobid, j1.starttime
+    FROM job j1, pool p1
+    WHERE p1.name='Full-LT' 
+    AND p1.poolid=j1.poolid
+    AND j1.type = 'B'
+    AND j1.jobstatus IN ('T','W') 
+    AND j1.jobbytes > 0
+    AND j1.name in ('lt-test01-phserver01')
+    AND j1.jobid NOT IN (
+      SELECT j2.priorjobid 
+      FROM job j2, pool p2
+      WHERE p2.poolid = j2.poolid
+      AND j2.type IN ('B','C')
+      AND j2.jobstatus IN ('T','W')
+      AND j2.priorjobid != 0
+      AND p2.name='Full-LT-Copy01'
+    )
+    ORDER by j1.starttime;"
+  Run After Job = "bacula_offsite_clean_and_umount.py phpc01e.your_remote_or_local_hostname."
+}
+
+
+Offsite solution with encfs and dropbox:
+- bacula_encfs_backup.py (requires you to setup a dropbox and encfs dir within the dropbox on the system where the
+  director is, then the script automatically mounts and umounts before and after backup).
+- Example job resource:
+  Job {
+    Name = lt-phpc01lin-c01-phpc01lin
+    Run Before Job = "bacula_encfs_backup_bacula mount %i"
+    Run After Job = "bacula_encfs_backup_bacula umount"
+    Run After Failed Job = "bacula_encfs_backup_bacula umount"
+    Client  = phpc01lin-fd
+    FileSet = phpc01lin-c01
+    Jobdefs = lt
+    Storage = sdropbox01
+    Maximum Concurrent Jobs = 1
+  }
+  Device {
+    Name = ddropbox01
+    Media Type = fdropbox01
+    Archive Device = /mnt/b01
+    LabelMedia = yes;
+    Random Access = yes;
+    AutomaticMount = yes;
+    RemovableMedia = no;
+    AlwaysOpen = no;
+    Maximum Concurrent Jobs = 20;
+  }
 
 
 #### Configuration
