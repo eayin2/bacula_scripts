@@ -28,7 +28,11 @@ Offsite solution with udev and e.g. usb-sata disk (e.g. plugin once a week and s
   config. It looks in the catalog for the backups of the given jobname)
 - bacula_offsite_clean_and_umount (Meant to run after an offsite job, to clean the offsite storage while its mounted of
   purged volumes)
-- Example job resource:
+- Example job resource. Notice that my sql query was test in postgresql, maybe ymmv. Also notice the 
+  line `AND to_timestamp(j1.jobtdate) > (current_timestamp - interval '180 days')` which will only grab the job entries
+  that are younger than 180 days. The specified timespan should be the same as the pool's retention time. If it's not
+  then bacula_del_purged_vols script may delete purged volumes and the offsite just copies already purged volumes back
+  to here, providing the pool that you copy from uses a higher job retention than the copy job pool.:
 
 ```
 Job {
@@ -49,6 +53,7 @@ Job {
     AND j1.jobstatus IN ('T','W') 
     AND j1.jobbytes > 0
     AND j1.name in ('lt-test01-phserver01')
+    AND to_timestamp(j1.jobtdate) > (current_timestamp - interval '180 days')
     AND j1.jobid NOT IN (
       SELECT j2.priorjobid 
       FROM job j2, pool p2
