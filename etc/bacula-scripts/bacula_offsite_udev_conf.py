@@ -51,6 +51,4 @@
 mp = "/mnt/8tb01"
 backup_dirs = ["offsite01"]
 ssh_alias = "phserver01.ffm01."  # Leave empty if offsite disk is connected also on the bacula server
-chown_user = "bareos"
-chown_group = "bareos"
 copy_jobs = ["c01full-lt-test01-phserver01", "c01diff-lt-test01-phserver01", "c01inc-lt-test01-phserver01"]

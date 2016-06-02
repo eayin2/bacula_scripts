@@ -17,7 +17,9 @@ User notes:
   doing backups, because bareos can't stat dirs mounted by another user, so this script will cancel the
   backup before it starts, when encfs is mounted by another user than bacula.
 """
+import grp
 import os
+import pwd
 import sys
 import subprocess
 from subprocess import PIPE
