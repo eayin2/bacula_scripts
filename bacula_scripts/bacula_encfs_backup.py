@@ -27,10 +27,8 @@ from subprocess import PIPE
 from helputils.core import umount, log
 sys.path.append("/etc/bacula-scripts")
 from bacula_encfs_backup_conf import encfs_passphrase, encfs_dir, mount_dir, cmd_mount, cmd_password
-from general_conf import user, group
 
-uid, gid = pwd.getpwnam(user).pw_uid, grp.getgrnam(group).gr_gid
-cmd_mount = ["encfs", "--stdinpass", "-o", "uid", uid, "-o", gid, group, encfs_dir, mount_dir]
+cmd_mount = ["encfs", "--stdinpass", encfs_dir, mount_dir]
 cmd_password = ["echo", encfs_passphrase]
 
 
@@ -46,10 +44,10 @@ def cancle_job(jobid):
 def encfs_mount(jobid=None):
     if os.path.ismount(mount_dir):
         log.info("Already mounted. Trying to unmount")
-        umount(mount_dir)
+        umount(mount_dir, fuser=True)
         if os.path.ismount(mount_dir):
             log.warning("Still mounted. Trying lazy unmount.")
-            umount(lazy=True)
+            umount(lazy=True, fuser=True)
             if os.path.ismount(mount_dir):
                 log.error("Couldn't be unmounted. Canceling job.")
                 cancle_job(jobid)
@@ -77,4 +75,4 @@ def main():
         else:
             encfs_mount()
     elif arg1 == "umount":
-        umount(mount_dir)
+        umount(mount_dir, fuser=True)
