@@ -47,7 +47,7 @@ def encfs_mount(jobid=None):
         umount(mount_dir, fuser=True)
         if os.path.ismount(mount_dir):
             log.warning("Still mounted. Trying lazy unmount.")
-            umount(lazy=True, fuser=True)
+            umount(mount_dir, lazy=True, fuser=True)
             if os.path.ismount(mount_dir):
                 log.error("Couldn't be unmounted. Canceling job.")
                 cancle_job(jobid)
