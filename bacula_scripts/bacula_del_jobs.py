@@ -4,7 +4,8 @@
 Description:
 Deletes all catalog entries that are associated to the given storage_name and also tries to delete the volume on
 disk. Notice that it deletes volumes matching given storage name OR give job names.
-This is only intended to run when you really want to delete something specifically. Doesn't work for remote storage devices.
+This is only intended to run when you really want to delete something specifically. Doesn't work for remote storage
+devices.
 """
 import re
 import os
@@ -22,7 +23,7 @@ sys.path.append("/etc/bacula-scripts")
 from bacula_del_jobs_conf import dry_run, storagenames, storagenames_del_only_catalog_entries, jobnames, filters
 from general_conf import db_host, db_user, db_name, sd_conf, storages_conf, services
 
-placeholder = "%s" # Building our parameterized sql command
+placeholder = "%s"  # Building our parameterized sql command
 jobnames_placeholders = ', '.join([placeholder] * len(jobnames))
 storagenames_placeholders = ', '.join([placeholder] * len(storagenames))
 
@@ -66,7 +67,7 @@ def build_volpath(volname, storagename, sd_conf_parsed, storages_parsed):
                 if devicename == device['Name']:
                     volpath = os.path.join(device['Archive Device'], volname)
                     if (not find_mountpoint(device["Archive Device"]) == "/" or storagename in
-                    storagenames_del_only_catalog_entries):
+                            storagenames_del_only_catalog_entries):
                         return volpath
                     else:
                         print("Device %s not mounted. Please mount it." % devicename)
@@ -105,10 +106,12 @@ def main():
             query = query + " AND j.name IN (%s);" % (jobnames_placeholders)
         elif filters == "or_both":
             data = storagenames + jobnames
-            query = query + " AND (s.name IN (%s) OR j.name IN (%s));" % (storagenames_placeholders, jobnames_placeholders)
+            query = query + " AND (s.name IN (%s) OR j.name IN (%s));" % (storagenames_placeholders,
+                                                                          jobnames_placeholders)
         elif filters == "and_both":
             data = storagenames + jobnames
-            query = query + " AND (s.name IN (%s) OR j.name IN (%s));" % (storagenames_placeholders, jobnames_placeholders)
+            query = query + " AND (s.name IN (%s) OR j.name IN (%s));" % (storagenames_placeholders,
+                                                                          jobnames_placeholders)
         elif filters == "storage":
             data = storagenames
             query = query + " AND s.name IN (%s);" % (storagenames_placeholders)
@@ -120,9 +123,9 @@ def main():
         del_job_media_jm_storage = cur.fetchall()
     except Exception as e:
         print(format_exception(e))
-    with open (sd_conf, 'r') as f:
+    with open(sd_conf, 'r') as f:
         sd_conf_parsed = parse_conf(f)
-    with open (storages_conf, 'r') as f:
+    with open(storages_conf, 'r') as f:
         storages_conf_parsed = parse_conf(f)
     del_job_media_jm_storage = [(w, x, build_volpath(y, z, sd_conf_parsed, storages_conf_parsed), z) for w, x, y, z in
                                 del_job_media_jm_storage if build_volpath(y, z, sd_conf_parsed, storages_conf_parsed)]

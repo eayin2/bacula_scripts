@@ -32,7 +32,7 @@ def del_from_catalog(ji):
             p1.stdout.close()
             out, err = p2.communicate()
             log.info("out %s, err %s" % (out, err))
-        
+
 
 def main():
     systemd_services_up(services)

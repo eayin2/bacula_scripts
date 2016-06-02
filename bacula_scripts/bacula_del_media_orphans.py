@@ -10,11 +10,12 @@ import os
 import sys
 import traceback
 from datetime import datetime
-from subprocess import Popen,PIPE
+from subprocess import Popen, PIPE
 
 import psycopg2
 
-from helputils.core import format_exception, find_mountpoint, remote_file_content, _isfile, islocal, log, systemd_services_up
+from helputils.core import (format_exception, find_mountpoint, remote_file_content, _isfile, islocal, log,
+                            systemd_services_up)
 sys.path.append("/etc/bacula-scripts")
 from bacula_del_media_orphans_conf import dry_run, del_orphan_log, verbose
 from general_conf import db_host, db_user, db_name, sd_conf, storages_conf, services
@@ -59,7 +60,7 @@ def main():
         media_storage = cur.fetchall()  # e.g. [('Incremental-ST-0126', 's8tb01'), ('Full-ST-0031', 's8tb01'), ..]
     except Exception as e:
         print(format_exception(e))
-    with open (storages_conf, "r") as myfile:
+    with open(storages_conf, "r") as myfile:
         storages_conf_parsed = parse_conf(myfile)
     for volname, storagename in media_storage:
         for storage in storages_conf_parsed:
@@ -68,7 +69,7 @@ def main():
                 remote_sd_conf = remote_file_content(hn, sd_conf)
                 sd_conf_parsed = parse_conf(remote_sd_conf)
             else:
-                with open (sd_conf, "r") as myfile:
+                with open(sd_conf, "r") as myfile:
                     sd_conf_parsed = parse_conf(myfile)
             if storagename == storage["Name"]:
                 devicename = storage["Device"]
@@ -89,5 +90,5 @@ def main():
                                     p1.stdout.close()
                                     out, err = p2.communicate()
                                     log.debug("out: %s, err: %s" % (out, err))
-                            elif verbose == True:
+                            elif verbose is True:
                                 log.info('File exists for %s' % volpath)

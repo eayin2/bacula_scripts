@@ -25,8 +25,10 @@ from subprocess import PIPE
 from helputils.core import umount, log
 sys.path.append("/etc/bacula-scripts")
 from bacula_encfs_backup_conf import encfs_passphrase, encfs_dir, mount_dir, cmd_mount, cmd_password
+from general_conf import user, group
 
-cmd_mount = ["encfs", "--stdinpass", encfs_dir, mount_dir]
+uid, gid = pwd.getpwnam(user).pw_uid, grp.getgrnam(group).gr_gid
+cmd_mount = ["encfs", "--stdinpass", "-o", "uid", uid, "-o", gid, group, encfs_dir, mount_dir]
 cmd_password = ["echo", encfs_passphrase]
 
 

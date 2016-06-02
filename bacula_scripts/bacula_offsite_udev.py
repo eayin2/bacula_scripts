@@ -18,7 +18,7 @@ User notes/prerequisites:
   the section [Service], else you won't be able to use the mountpoint.
 - If you connect the offsite hdd not on the system where bacula-dir is running, then make sure to add the ssh alias
   for the remote system where bacula-dir is running to /root/.ssh/config. Plus make sure to connect the first time
-  manually to ssh, so you can accept the ssh fingerprint, else the script will hang. 
+  manually to ssh, so you can accept the ssh fingerprint, else the script will hang.
 - Create offsite sd, copy job and pool resources
 - Set prune level for offsite pool to 6 months
 - Create udev rule, e.g.:
@@ -37,8 +37,8 @@ Dev script description:
 - When job is done (run after job)
   (this is the easier way to let bacula tell us when the job is done)
  . Initiate del-purged-vols-bacula.py on the bacula-dir server-side (with or without ssh)
-   with 'Run after Job = /usr/local/bin/phpc01-offsite-bacula.py' which runs:                                                                                         
-   '/usr/local/bin/del-purged-vols-bacula.py; ssh phpc01.ffm01. offsite-udev-bareos.py umount'         
+   with 'Run after Job = /usr/local/bin/phpc01-offsite-bacula.py' which runs:
+   '/usr/local/bin/del-purged-vols-bacula.py; ssh phpc01.ffm01. offsite-udev-bareos.py umount'
  . umount mountpoint
  . success mail
 
@@ -56,13 +56,14 @@ from subprocess import Popen, PIPE
 from gymail.core import send_mail
 from helputils.core import mkdir_p, umount, mount, log, try_func
 sys.path.append("/etc/bacula-scripts")
-from bacula_offsite_udev_conf import mp, backup_dirs, ssh_alias, chown_user, chown_group, copy_jobs
+from bacula_offsite_udev_conf import mp, backup_dirs, ssh_alias, copy_jobs
+from general_conf import user, group
 
 
 def run_job(jn, ssh_hn=None):
     """Running given bacula job."""
     log.info("run_job with jobname %s: ssh: %s" % (jn, str(ssh_hn)))
-    ssh = ["/usr/bin/ssh", ssh_hn] 
+    ssh = ["/usr/bin/ssh", ssh_hn]
     cmd = ["/usr/sbin/bconsole"]
     cmd = (ssh + cmd) if ssh_hn else cmd
     p1 = Popen(cmd, stdin=PIPE, stdout=PIPE)
@@ -79,8 +80,8 @@ def main():
             for x in backup_dirs:
                 x = os.path.join(mp, x)
                 mkdir_p(x)
-                chown_user_id, chown_group_id = pwd.getpwnam(chown_user).pw_uid, grp.getgrnam(chown_group).gr_gid
-                os.chown(x, chown_user_id, chown_group_id)
+                uid, gid = pwd.getpwnam(user).pw_uid, grp.getgrnam(group).gr_gid
+                os.chown(x, uid, gid)
             log.info("Running job now")
             [try_func(run_job, x, ssh_alias) for x in copy_jobs]
             log.info("Run jobs: %s" % ", ".join(copy_jobs))
