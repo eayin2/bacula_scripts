@@ -42,7 +42,7 @@ def main():
             p2 = Popen(["bconsole"], stdin=p1.stdout, stdout=PIPE)
             p1.stdout.close()
             out, err = p2.communicate()
-            p1 = Popen(["echo", "delete volume=%s yes" % tuple[0]], stdout=PIPE)
+            p1 = Popen(["echo", "delete volume=%s yes" % jobid], stdout=PIPE)
             p2 = Popen(["bconsole"], stdin=p1.stdout, stdout=PIPE)
             p1.stdout.close()
             out, err = p2.communicate()

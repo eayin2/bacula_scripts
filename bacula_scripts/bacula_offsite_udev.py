@@ -56,8 +56,7 @@ from subprocess import Popen, PIPE
 from gymail.core import send_mail
 from helputils.core import mkdir_p, umount, mount, log, try_func
 sys.path.append("/etc/bacula-scripts")
-from bacula_offsite_udev_conf import mp, backup_dirs, ssh_alias, copy_jobs
-from general_conf import user, group
+from bacula_offsite_udev_conf import mp, backup_dirs, ssh_alias, copy_jobs, chown_user, chown_group
 
 
 def run_job(jn, ssh_hn=None):
@@ -80,7 +79,7 @@ def main():
             for x in backup_dirs:
                 x = os.path.join(mp, x)
                 mkdir_p(x)
-                uid, gid = pwd.getpwnam(user).pw_uid, grp.getgrnam(group).gr_gid
+                uid, gid = pwd.getpwnam(chown_user).pw_uid, grp.getgrnam(chown_group).gr_gid
                 os.chown(x, uid, gid)
             log.info("Running job now")
             [try_func(run_job, x, ssh_alias) for x in copy_jobs]
