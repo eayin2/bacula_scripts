@@ -106,3 +106,13 @@ You can install this package with `pip3 install bacula_scripts` (tested it in ma
 
 #### Deps: 
 helputils, gymail, psycopg2
+
+
+#### Issues:
+If bacula_offsite_udev doesn't work, try to initiate it manually in foreground with `bacula_offsite_udev add sdXY` (as
+root), so that you can see the debug messages.
+
+Also check in bconsole (on your bacula director) your offsite storage devices status. Moreover you can try to cancel all
+copy backups and manually start each to see the bconsole messages for hints.
+
+I run latter steps to find out that my offsite disk was full and thus backups failed.
