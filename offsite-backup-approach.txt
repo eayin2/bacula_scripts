@@ -1,0 +1,27 @@
+# Offsite backups
+
+ If udev rule is not enable (to automatically run a script on plugin) you can manually initiate the script with
+`sudo bacula_offsite_udev add sdXY`, then the script will mount the hdd to your configured offsite mountpoint and create
+the bareos jobs via ssh (from the client to the bareos dir) with bconsole. Each copy job creates multiple
+jobs (for each backup) too. 
+
+To get rid of old backups, clean the hdd before initiating new offsite backups. Approach like this:
+(1) mount hdd with `sudo bacula_offsite_udev mount sdXY`
+(2) run on the dir server `bacula_prune_all`, which will prune all volumes according to the retention times
+    in the config.
+(3) run `bacula_del_purged_vols` to finally remove purged vols (will work for remote sd's if ssh host is configured the
+    same as in storages.conf
+(4) unmount your offsite mountpoint with `sudo umount /mnt/8tb01`. Thats it, now you can precede with above offsite
+    backup.
+
+
+# Requirements:
+
+The client where the offsite sd is needs the services bareos-sd and bareos-fd running and the bareos ports for those
+services opened.
+
+
+# Precautions:
+
+- Make sure your hdd has enough space.
+- Sometimes you need to restart the clients sd/fd and the servers dir/sd/fd to have the offsite hdd being recognized.

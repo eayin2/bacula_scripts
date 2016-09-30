@@ -14,7 +14,7 @@ Deps/Required scripts/packages:
 
 User notes/prerequisites:
 - "systemd-udevd runs in its own file system namespace and by default mounts done within udev .rules do not
-  propagate to the host. So add MountFlags=shared in /usr/lib/systemd/system/systemd-udevd.service under
+  propagate to the host. So add MountFlags=shared in /usr/lib/systemd/system/systemd-udevd.servie under
   the section [Service], else you won't be able to use the mountpoint.
 - If you connect the offsite hdd not on the system where bacula-dir is running, then make sure to add the ssh alias
   for the remote system where bacula-dir is running to /root/.ssh/config. Plus make sure to connect the first time

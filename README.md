@@ -15,6 +15,7 @@ bacula tools bls to parse the metadata of the volumes in the given path.
 - bacula_find_backups_bls
 
 Meant for recurring execution (e.g. in cron.weekly) to clean the catalog for redundant entries or disk space for purged volumes.
+- bacula_prune_all (Run this before bacula_del_purged_vols to force bacula to apply prunes rules for all volumes)
 - bacula_del_purged_vols (will not delete a volume if there's an unpurged volume within the backup chain of it)
 - bacula_del_failed_jobs (removes failed jobs in the catalog to keep it a little cleaner)
 
