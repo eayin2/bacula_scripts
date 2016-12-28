@@ -283,8 +283,8 @@ def main():
         elif len(diff_backups) > 0:
             log.info("Not removing {0}, because there are still diff backups dependent on it.".format(volpath))
             continue
-        elif len(full_backups) < 4:
-            log.info("Not removing {0}, because we have less than four full backups in total.".format(volpath))
+        elif len(full_backups) < 3:
+            log.info("Not removing {0}, because we have less than four three backups in total.".format(volpath))
             continue
         else:
             remove_backup.append((volpath, hn))

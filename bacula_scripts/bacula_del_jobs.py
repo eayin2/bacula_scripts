@@ -20,7 +20,7 @@ import psycopg2
 from helputils.core import format_exception, find_mountpoint, systemd_services_up
 
 sys.path.append("/etc/bacula-scripts")
-from bacula_del_jobs_conf import dry_run, storagenames, storagenames_del_only_catalog_entries, jobnames, filters
+from bacula_del_jobs_conf import dry_run, storagenames, storagenames_del_only_catalog_entries, jobnames, filters, starttime
 from general_conf import db_host, db_user, db_name, sd_conf, storages_conf, services
 
 placeholder = "%s"  # Building our parameterized sql command
@@ -115,10 +115,17 @@ def main():
         elif filters == "storage":
             data = storagenames
             query = query + " AND s.name IN (%s);" % (storagenames_placeholders)
+        elif filters == "newer_than_starttime":
+            data = starttime
+            query = query + " AND j.starttime >= %s::timestamp;"
+        elif filters == "older_than_starttime":
+            data = starttime
+            query = query + " AND j.starttime <= %s::timestamp;"
         else:
             log.error("Wrong filter or filter not defined.")
             sys.exit()
         print("Query: %s %s" % (query, str(data)))
+        print(query % str(data))
         cur.execute(query, data)
         del_job_media_jm_storage = cur.fetchall()
     except Exception as e:

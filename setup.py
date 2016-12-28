@@ -3,9 +3,9 @@ from setuptools import find_packages
 
 setup(
     name="bacula_scripts",
-    version="0.4.5",
+    version="0.4.6",
     author="eayin2",
-    author_email="eayin2 at gmail dot com",
+    author_email="eayin2@gmail.com",
     packages=find_packages(),
     url="https://github.com/eayin2/bacula_scripts",
     description="Bunch of bacula scripts. Includes also scripts to realize offsite backup solution.",
@@ -24,6 +24,7 @@ setup(
             'bacula_encfs_backup = bacula_scripts.bacula_encfs_backup:main',
             'bacula_offsite_udev = bacula_scripts.bacula_offsite_udev:main',
             'bacula_prune_all = bacula_scripts.bacula_prune_all:main',
+            'bacula_prune_scattered = bacula_scripts.bacula_prune_scattered:main',
         ],
     },
 )
