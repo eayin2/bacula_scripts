@@ -56,7 +56,7 @@ UPDATE media SET recycle=0;
         ConnectTimeout=5
     Now also make sure that you add following commands for the ssh user in sudoers with NOPASSWD:
         someuser ALL=NOPASSWD: /usr/bin/cat /etc/bareos/bareos-sd.conf
-        someuser ALL=NOPASSWD: /usr/bin/timeout 0.04 bls -jv *
+        someuser ALL=NOPASSWD: /usr/bin/timeout 0.1 bls -jv *
         someuser ALL=NOPASSWD: /usr/bin/rm /mnt/path/to/your/offsite/storage/*
 """
 import re
@@ -71,7 +71,7 @@ from subprocess import Popen, PIPE
 import psycopg2
 
 from helputils.core import (log, format_exception, islocal, _isfile, find_mountpoint, remote_file_content,
-                            systemd_services_up)
+                            systemd_services_up, setlocals)
 sys.path.append("/etc/bacula-scripts")
 from bacula_del_purged_vols_conf import offsite_mt, dry_run
 from general_conf import sd_conf, storages_conf, db_host, db_user, db_name, services
@@ -79,8 +79,9 @@ from general_conf import sd_conf, storages_conf, db_host, db_user, db_name, serv
 
 def parse_vol(volume, hn=False):
     """Parses volume with bls and returns jobname and timestamp of job. Make sure to have bls in your $PATH and add
-       `user ALL=NOPASSWD: /usr/bin/timeout 0.04 bls -jv` to sudoers"""
-    cmd = ["/usr/bin/timeout", "0.04", "bls", "-jv", volume]
+       `user ALL=NOPASSWD: /usr/bin/timeout 0.1 bls -jv` to sudoers"""
+    log.debug("Run `/usr/bin/timeout 0.1 bls -jv %s` (should be absolute path)" % volume)
+    cmd = ["/usr/bin/timeout", "0.1", "bls", "-jv", volume]
     if hn and not islocal(hn):
         cmd = ["ssh", hn, "sudo"] + cmd
     p = Popen(cmd, stdout=PIPE, stderr=PIPE)
@@ -99,7 +100,11 @@ def parse_vol(volume, hn=False):
         log.info("Deleting volume, because no metadata found: %s " % vol)
         return None
     log.info("cn:{0}, fn:{1}, jl:{2}, ti:{3}, mt:{4}, vol:{5}, jn:{6}, pn:{7}".format(cn, fn, jl, ti, mt, vol, jn, pn))
-    dt = datetime.strptime(ti, "%d-%b-%Y %H:%M")
+    try:
+        dt = datetime.strptime(ti, "%d-%b-%Y %H:%M")
+    except:
+        setlocals()
+        dt = datetime.strptime(ti, "%d-%b-%Y %H:%M")        
     ts = time.mktime(dt.timetuple())
     return (cn, fn, ts, jl, jn, mt, pn)
 

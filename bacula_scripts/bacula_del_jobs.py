@@ -6,6 +6,11 @@ Deletes all catalog entries that are associated to the given storage_name and al
 disk. Notice that it deletes volumes matching given storage name OR give job names.
 This is only intended to run when you really want to delete something specifically. Doesn't work for remote storage
 devices.
+
+If you need to remove also backups from your dropbox encfs storage, then mount it e.g. simply with 
+`/usr/bin/bacula_encfs_backup mount` (which mounts e.g. to /mnt/b01 depending on your
+/etc/bacula-scripts/bacula_encfs_backup_conf.py configuration) and then bacula-del-jobs.py will also remove backups from
+there. Important: Make sure unmount it afterwards again, because bacula user can't unmount other users mountpoints.
 """
 import re
 import os
