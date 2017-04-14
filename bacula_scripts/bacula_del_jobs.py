@@ -11,6 +11,9 @@ If you need to remove also backups from your dropbox encfs storage, then mount i
 `/usr/bin/bacula_encfs_backup mount` (which mounts e.g. to /mnt/b01 depending on your
 /etc/bacula-scripts/bacula_encfs_backup_conf.py configuration) and then bacula-del-jobs.py will also remove backups from
 there. Important: Make sure unmount it afterwards again, because bacula user can't unmount other users mountpoints.
+
+If you use passphrases for your remote clients, make sure to run `ssh-add -t 10m /path/to/your/ssh/key` before running
+this script, because else you get prompted permanently for your passphrase.
 """
 import re
 import os
@@ -26,7 +29,7 @@ from helputils.core import format_exception, find_mountpoint, systemd_services_u
 
 sys.path.append("/etc/bacula-scripts")
 from bacula_del_jobs_conf import dry_run, storagenames, storagenames_del_only_catalog_entries, jobnames, filters, starttime
-from general_conf import db_host, db_user, db_name, sd_conf, storages_conf, services
+from general_conf import db_host, db_user, db_name, db_password, sd_conf, storages_conf, services
 
 placeholder = "%s"  # Building our parameterized sql command
 jobnames_placeholders = ', '.join([placeholder] * len(jobnames))
@@ -100,7 +103,7 @@ def del_backups(b):
 def main():
     systemd_services_up(services)
     try:
-        con = psycopg2.connect(database=db_name, user=db_user, host=db_host)
+        con = psycopg2.connect(database=db_name, user=db_user, host=db_host, password=db_password)
         cur = con.cursor()
         query = "select distinct j.jobid, j.name, m.volumename, s.name from job j, media m, jobmedia jm, storage s " \
                 "WHERE m.mediaid=jm.mediaid " \

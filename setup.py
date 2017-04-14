@@ -3,7 +3,7 @@ from setuptools import find_packages
 
 setup(
     name="bacula_scripts",
-    version="0.4.8",
+    version="0.5.6",
     author="eayin2",
     author_email="eayin2@gmail.com",
     packages=find_packages(),
@@ -25,6 +25,7 @@ setup(
             'bacula_offsite_udev = bacula_scripts.bacula_offsite_udev:main',
             'bacula_prune_all = bacula_scripts.bacula_prune_all:main',
             'bacula_prune_scattered = bacula_scripts.bacula_prune_scattered:main',
+            'disk_full_notifier = bacula_scripts.disk_full_notifier:main',
         ],
     },
 )

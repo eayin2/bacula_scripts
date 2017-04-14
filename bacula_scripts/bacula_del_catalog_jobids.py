@@ -16,10 +16,11 @@ from subprocess import Popen, PIPE
 
 import psycopg2
 
-from helputils.core import format_exception, log, systemd_services_up
+from helputils.core import format_exception, systemd_services_up
+from helputils.defaultlog import log
 sys.path.append("/etc/bacula-scripts")
 from bacula_del_catalog_jobids_conf import dry_run, query
-from general_conf import db_host, db_user, db_name, services
+from general_conf import db_host, db_user, db_name, db_password, services
 
 
 def del_from_catalog(ji):
@@ -37,7 +38,7 @@ def del_from_catalog(ji):
 def main():
     systemd_services_up(services)
     try:
-        con = psycopg2.connect(database=db_name, user=db_user, host=db_host)
+        con = psycopg2.connect(database=db_name, user=db_user, host=db_host, password=db_password)
         cur = con.cursor()
         cur.execute(query)
         del_jobids = cur.fetchall()

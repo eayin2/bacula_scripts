@@ -24,7 +24,7 @@ Run After Job = "/usr/local/bin/clean-and-umount-offsite-bacula.py phpc01.ffm01.
 import sys
 from subprocess import Popen, PIPE
 
-from helputils.core import log
+from helputils.defaultlog import log
 sys.path.append("/etc/bacula-scripts")
 from bacula_offsite_clean_and_umount_conf import del_purged_vols_bacula_bin, offsite_udev_bacula_bin
 

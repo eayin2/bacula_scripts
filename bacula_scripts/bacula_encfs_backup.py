@@ -24,7 +24,8 @@ import sys
 import subprocess
 from subprocess import PIPE
 
-from helputils.core import umount, log
+from helputils.core import umount
+from helputils.defaultlog import log
 sys.path.append("/etc/bacula-scripts")
 from bacula_encfs_backup_conf import encfs_passphrase, encfs_dir, mount_dir, cmd_mount, cmd_password
 

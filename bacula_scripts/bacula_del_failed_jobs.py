@@ -19,16 +19,17 @@ import psycopg2
 import sys
 from subprocess import Popen, PIPE
 
-from helputils.core import format_exception, systemd_services_up, log
+from helputils.core import format_exception, systemd_services_up
+from helputils.defaultlog import log
 sys.path.append("/etc/bacula-scripts")
 from bacula_del_failed_jobs_conf import dry_run
-from general_conf import db_host, db_user, db_name, services
+from general_conf import db_host, db_user, db_name, db_password, services
 
 
 def main():
     systemd_services_up(services)
     try:
-        con = psycopg2.connect(database=db_name, user=db_user, host=db_host)
+        con = psycopg2.connect(database=db_name, user=db_user, host=db_host, password=db_password)
         cur = con.cursor()
         cur.execute("SELECT DISTINCT j.jobid, m.volumename FROM job j, jobmedia jm, media m WHERE j.JobStatus "
                     "IN ('E', 'A', 'f') AND j.jobid=jm.jobid AND jm.mediaid=m.mediaid;")

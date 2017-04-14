@@ -7,6 +7,7 @@
 #   Run After Job = /usr/local/bin/encfs-backup-bacula.py umount
 
 # User notes:
+# - Install dropbox to a different locatio with e.g. `HOME=/mnt/dropbox01/ /usr/bin/dropbox start -i`
 # - Make sure encfs dir is owned by bacula (chown -R bacula:bacula /mnt/dropbox01/Dropbox/.encfs)
 #   Also the dir where encfs is mounted to has to be owned by bacula
 # - Create the dropbox dir for example in /mnt (not /root), because you need to have it in a traversable

@@ -63,4 +63,6 @@ User notes:
 offsite_mt = ("foffsite01")  # Workaround, see User notes (5)
 
 dry_run = False
-#dry_run = True
+# Recommended to keep this "False" unless you know what you are doing, because if you have e.g. `bls` not installed and
+# have del_vols_with_no_metadata set to True it would delete all your backups.
+del_vols_with_no_metadata = False

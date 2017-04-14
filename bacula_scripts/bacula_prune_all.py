@@ -10,9 +10,10 @@ import psycopg2
 import sys
 from subprocess import Popen, PIPE
 
-from helputils.core import format_exception, systemd_services_up, log
+from helputils.core import format_exception, systemd_services_up
+from helputils.defaultlog import log
 sys.path.append("/etc/bacula-scripts")
-from general_conf import db_host, db_user, db_name, services
+from general_conf import db_host, db_user, db_name, db_password, services
 
 dry_run = False
 sql = "SELECT DISTINCT m.volumename FROM jobmedia jm, media m, job j "\
@@ -27,7 +28,7 @@ sql = "SELECT DISTINCT m.volumename FROM jobmedia jm, media m, job j "\
 def main():
     systemd_services_up(services)
     try:
-        con = psycopg2.connect(database=db_name, user=db_user, host=db_host)
+        con = psycopg2.connect(database=db_name, user=db_user, host=db_host, password=db_password)
         cur = con.cursor()
         cur.execute(sql)
         volnames = cur.fetchall()

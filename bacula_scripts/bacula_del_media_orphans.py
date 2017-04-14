@@ -14,11 +14,11 @@ from subprocess import Popen, PIPE
 
 import psycopg2
 
-from helputils.core import (format_exception, find_mountpoint, remote_file_content, _isfile, islocal, log,
-                            systemd_services_up)
+from helputils.core import format_exception, find_mountpoint, remote_file_content, _isfile, islocal, systemd_services_up
+from helputils.defaultlog import log
 sys.path.append("/etc/bacula-scripts")
 from bacula_del_media_orphans_conf import dry_run, del_orphan_log, verbose
-from general_conf import db_host, db_user, db_name, sd_conf, storages_conf, services
+from general_conf import db_host, db_user, db_name, db_password, sd_conf, storages_conf, services
 
 
 def parse_conf(lines):
@@ -54,7 +54,7 @@ def parse_conf(lines):
 def main():
     systemd_services_up(services)
     try:
-        con = psycopg2.connect(database=db_name, user=db_user, host=db_host)
+        con = psycopg2.connect(database=db_name, user=db_user, host=db_host, password=db_password)
         cur = con.cursor()
         cur.execute("SELECT m.volumename, s.name FROM media m, storage s WHERE m.storageid=s.storageid;")
         media_storage = cur.fetchall()  # e.g. [('Incremental-ST-0126', 's8tb01'), ('Full-ST-0031', 's8tb01'), ..]

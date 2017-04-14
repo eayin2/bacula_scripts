@@ -108,6 +108,7 @@ You can install this package with `pip3 install bacula_scripts` (tested it in ma
 #### Deps: 
 helputils, gymail, psycopg2
 
+Also make sure bacula tools are installed, because the CLI tool `bls` is required.
 
 #### Issues:
 If bacula_offsite_udev doesn't work, try to initiate it manually in foreground with `bacula_offsite_udev add sdXY` (as

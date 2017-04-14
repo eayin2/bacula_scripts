@@ -16,7 +16,7 @@ from gymail.core import send_mail
 from helputils.core import format_exception, systemd_services_up
 sys.path.append("/etc/bacula-scripts")
 from bacula_offsite_backup_age_watch_conf import max_offsite_age, jobnames
-from general_conf import db_host, db_user, db_name, services
+from general_conf import db_host, db_user, db_name, db_password, services
 
 # Building our parameterized sql command
 placeholder = "%s"
@@ -26,7 +26,7 @@ jobnames_placeholders = ', '.join([placeholder] * len(jobnames))
 def newest_offsite_backup():
     """Returns for newest offsite backup"""
     try:
-        con = psycopg2.connect(database=db_name, user=db_user, host=db_host)
+        con = psycopg2.connect(database=db_name, user=db_user, host=db_host, password=db_password)
         cur = con.cursor()
         query = "SELECT distinct j.jobtdate "\
                 "FROM media m, job j, jobmedia jm "\

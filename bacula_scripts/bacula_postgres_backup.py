@@ -11,7 +11,8 @@ import os
 import sys
 
 from subprocess import Popen, PIPE
-from helputils.core import mkdir_p, log
+from helputils.core import mkdir_p
+from helputils.defaultlog import log
 
 # Config
 dbbackupdir = "/tmp/dbbackup"

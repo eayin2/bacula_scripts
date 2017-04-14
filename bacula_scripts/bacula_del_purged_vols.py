@@ -69,12 +69,12 @@ from datetime import datetime
 from subprocess import Popen, PIPE
 
 import psycopg2
-
-from helputils.core import (log, format_exception, islocal, _isfile, find_mountpoint, remote_file_content,
+from helputils.core import (format_exception, islocal, _isfile, find_mountpoint, remote_file_content,
                             systemd_services_up, setlocals)
+from helputils.defaultlog import log
 sys.path.append("/etc/bacula-scripts")
-from bacula_del_purged_vols_conf import offsite_mt, dry_run
-from general_conf import sd_conf, storages_conf, db_host, db_user, db_name, services
+from bacula_del_purged_vols_conf import offsite_mt, dry_run, del_vols_with_no_metadata
+from general_conf import sd_conf, storages_conf, db_host, db_user, db_name, db_password, services
 
 
 def parse_vol(volume, hn=False):
@@ -161,9 +161,12 @@ def storagehostname(storages_conf_parsed, sn):
 
 
 def del_backups(remove_backup):
-    """Deletes list of backups from disk and catalog. Make sure to add to your sudoers file something like:
-       `user ALL=NOPASSWD: /usr/bin/rm /mnt/8tb01/offsite01/*`. Notice that I added the offsite's path with the
-       wildcard after the rm command, so that the user can only use rm for that directory."""
+    """Deletes list of backups from disk and catalog. 
+
+    Make sure to add to your sudoers file something like:
+    `user ALL=NOPASSWD: /usr/bin/rm /mnt/8tb01/offsite01/*`. Notice that I added the offsite's path with the
+    wildcard after the rm command, so that the user can only use rm for that directory.
+    """
     for volpath, hn in remove_backup:
         volname = os.path.basename(volpath)
         log.info("Deleting %s:%s" % (hn, volpath))
@@ -171,9 +174,10 @@ def del_backups(remove_backup):
             if islocal(hn):
                 try:
                     os.remove(volpath)
+                    log.info("Deleted %s" % volpath)
                 except Exception as e:
                     log.error(format_exception(e))
-                    log.info("Already deleted vol %s" % volpath)
+                    log.info("Deleting failed, apparently volpath %s doesn't exist." % volpath)
             elif not islocal(hn):
                 try:
                     p = Popen(["ssh", hn, "sudo", "/usr/bin/rm", volpath])
@@ -186,7 +190,7 @@ def del_backups(remove_backup):
                             continue
                 except Exception as e:
                     log.error(format_exception(e))
-                    log.info("Already deleted vol %s" % volpath)
+                    log.info("Deleting failed, apparently volpath %s doesn't exist (remote delete)." % volpath)
             p1 = Popen(["echo", "delete volume=%s yes" % volname], stdout=PIPE)
             p2 = Popen(["bconsole"], stdin=p1.stdout, stdout=PIPE)
             p1.stdout.close()
@@ -197,7 +201,7 @@ def del_backups(remove_backup):
 def main():
     systemd_services_up(services)
     try:
-        con = psycopg2.connect(database=db_name, user=db_user, host=db_host)
+        con = psycopg2.connect(database=db_name, user=db_user, host=db_host, password=db_password)
         cur = con.cursor()
         cur.execute("SELECT distinct m.volumename, s.name, m.volstatus, j.jobtdate, j.filesetid, j.clientid, j.level, "
                     "c.name, f.fileset, j.name, mt.mediatype "
@@ -223,6 +227,7 @@ def main():
     with open(storages_conf, "r") as f:
         storages_conf_parsed = parse_conf(f)
     log.info("\n\n\n\nSorting purged volumes to full_purged, diff_purged and inc_purged.\n\n")
+    log.info("There are %s purged_vols and %s unpurged_backups" % (len(purged_vols), len(unpurged_backups)))
     for volname, storagename in purged_vols:
         hn = storagehostname(storages_conf_parsed, storagename)
         if islocal(hn):
@@ -243,6 +248,14 @@ def main():
             if vol_parsed:
                 cn, fn, ts, jl, jn, mt, pn = vol_parsed
             else:
+                if del_vols_with_no_metadata:
+                    log.info("Removing volume, because it has no metadata. Removing both file and catalog record.")
+                    os.remove(volpath)
+                    p1 = Popen(["echo", "delete volume=%s yes" % volname], stdout=PIPE)
+                    p2 = Popen(["bconsole"], stdin=p1.stdout, stdout=PIPE)
+                    p1.stdout.close()
+                    out, err = p2.communicate()
+                    log.debug("out: %s, err: %s" % (out, err))
                 continue
         else:
             continue
@@ -259,7 +272,10 @@ def main():
         full_purged.append(x1) if jl == "F" else ""
         diff_purged.append(x1) if jl == "D" else ""
         inc_purged.append(x1) if jl == "I" else ""
-    log.info("\n\n\n\nDeciding which purged full vols to delete")
+    log.info("\n\n\n")
+    log.info("~*~*~*~~~~~*~*~*~~*~*~*~~~~~*~*~*~~*~*~*~~~~~*~*~*~")
+    log.info("~*~*~*~~~~~*~*~*~~*~*~*~~~~~*~*~*~~*~*~*~~~~~*~*~*~")
+    log.info("\n\n\nDeciding which purged full vols to delete")
     for volpath, cn, fn, backup_time, hn, jn, mt in full_purged:
         # log.debug("\n\nDeciding which purged full vols to delete: cn: {0}, fn: {1}, backup_time: {2}, volpath:
         #            {3}".format(cn, fn, backup_time, volpath))
@@ -292,8 +308,12 @@ def main():
             log.info("Not removing {0}, because we have less than four three backups in total.".format(volpath))
             continue
         else:
+            log.info("Adding backup to remove list")
             remove_backup.append((volpath, hn))
-    log.info("\n\n\n\nDeciding which purged incremental vols to delete")
+    log.info("\n\n\n")
+    log.info("~*~*~*~~~~~*~*~*~~*~*~*~~~~~*~*~*~~*~*~*~~~~~*~*~*~")
+    log.info("~*~*~*~~~~~*~*~*~~*~*~*~~~~~*~*~*~~*~*~*~~~~~*~*~*~")
+    log.info("\n\n\nDeciding which purged incremental vols to delete")
     for volpath, cn, fn, backup_time, hn, jn, mt in inc_purged:
         newer_full_diff_backups = [x3 for x3 in unpurged_backups if x3[6] in ["F", "D"] and x3[3] > backup_time and
                                    cn == x3[7] and fn == x3[8] and jn == x3[9] and mt == x3[10]]
@@ -315,8 +335,12 @@ def main():
                      "purged.".format(volpath))
             continue
         else:
+            log.info("Adding backup to remove list")
             remove_backup.append((volpath, hn))
-    log.info("\n\n\n\nDeciding which purged diff vols to delete")
+    log.info("\n\n\n")
+    log.info("~*~*~*~~~~~*~*~*~~*~*~*~~~~~*~*~*~~*~*~*~~~~~*~*~*~")
+    log.info("~*~*~*~~~~~*~*~*~~*~*~*~~~~~*~*~*~~*~*~*~~~~~*~*~*~")
+    log.info("\n\n\nDeciding which purged diff vols to delete")
     for volpath, cn, fn, backup_time, hn, jn, mt in diff_purged:
         newer_full_or_diff_backups = [x3 for x3 in unpurged_backups if x3[6] in ["F", "D"] and x3[3] > backup_time and
                                       cn == x3[7] and fn == x3[8] and jn == x3[9] and mt == x3[10]]
@@ -337,8 +361,10 @@ def main():
                 log.info("Not removing {0}, because we have less than four full backups in total.".format(volpath))
                 continue
             else:
+                log.info("Adding backup to remove list")
                 remove_backup.append((volpath, hn))
     log.info("\n\n\n\nDecisions made. Initating deletion.")
+    log.info("remove_backup list: %s" % remove_backup)
     if len(remove_backup) == 0:
         log.info("Nothing to delete")
     del_backups(remove_backup)

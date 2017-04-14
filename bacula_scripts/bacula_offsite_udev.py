@@ -3,8 +3,8 @@
 offsite-udev-bacula.py
 #
 Usage:
-offsite-udev-bacula.py add /dev/sdXY  -  mounts and runs offsite backup
-offsite-udev-bacula.py umount         -  umounts offsite disk
+offsite-udev-bacula.py add sdXY  -  mounts and runs offsite backup (notice with /dev/)
+offsite-udev-bacula.py umount    -  umounts offsite disk
 #
 Deps/Required scripts/packages:
  - del-purged-vols-bacula.py (@bareos-dir) (later put bacula scripts into one pypa package)
@@ -54,7 +54,8 @@ import traceback
 from subprocess import Popen, PIPE
 
 from gymail.core import send_mail
-from helputils.core import mkdir_p, umount, mount, log, try_func
+from helputils.core import mkdir_p, umount, mount, try_func
+from helputils.defaultlog import log
 sys.path.append("/etc/bacula-scripts")
 from bacula_offsite_udev_conf import mp, backup_dirs, ssh_alias, copy_jobs, chown_user, chown_group
 
