@@ -29,8 +29,8 @@ from helputils.defaultlog import log
 sys.path.append("/etc/bacula-scripts")
 from bacula_encfs_backup_conf import encfs_passphrase, encfs_dir, mount_dir, cmd_mount, cmd_password
 
-cmd_mount = ["encfs", "--stdinpass", encfs_dir, mount_dir]
-cmd_password = ["echo", encfs_passphrase]
+# cmd_mount = ["encfs", "--stdinpass", encfs_dir, mount_dir]
+# cmd_password = ["echo", encfs_passphrase]
 
 
 def cancle_job(jobid):

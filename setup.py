@@ -3,7 +3,7 @@ from setuptools import find_packages
 
 setup(
     name="bacula_scripts",
-    version="0.5.6",
+    version="0.6.2",
     author="eayin2",
     author_email="eayin2@gmail.com",
     packages=find_packages(),
@@ -13,7 +13,7 @@ setup(
     entry_points={
         'console_scripts': [
             'bacula_del_jobs = bacula_scripts.bacula_del_jobs:main',
-            'bacula_postgres_backup = bacula_scripts.bacula_postgres_backup:main',
+            'bacula_db_backup = bacula_scripts.bacula_db_backup:main',
             'bacula_del_media_orphans = bacula_scripts.bacula_del_media_orphans:main',
             'bacula_del_failed_jobs = bacula_scripts.bacula_del_failed_jobs:main',
             'bacula_del_catalog_jobids = bacula_scripts.bacula_del_catalog_jobids:main',

@@ -20,7 +20,7 @@ mkdir_p(dbbackupdir)
 os.environ["PGUSER"] = "postgres"
 
 
-def createbackup(dbname, dbtype):
+def createbackup(dbname, dbtype, dbbackupdir=dbbackupdir):
     """Creates backup"""
     fn = "%s_%s_%s.db" % (dbtype, dbname, dt.datetime.now().strftime("%d.%m.%y"))
     log.debug(fn)
@@ -31,6 +31,9 @@ def createbackup(dbname, dbtype):
     elif dbtype == "mongodb":
         # By default mongodump dumps all db, but here we backup only the given dbname
         cmd = ["mongodump", "-d", dbname]
+    elif dbtype == "mysql":
+        # root can login by default to mysql
+        cmd = ["mysqldump", dbname]
     p1 = Popen(cmd, stdout=f)
     o = p1.communicate()[0]
     log.debug(o)
@@ -58,11 +61,15 @@ for x in services:
 # Argparse
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("-d", nargs=1)
-    p.add_argument("-c", nargs=1)
-    p.add_argument("-t", choices=["postgresql", "mongodb"], required=True)
+    p.add_argument("-d", nargs=1, help="Delete a db dump backup.")
+    p.add_argument("-c", nargs=1, help="Create a db dump backup.")
+    p.add_argument("-p", nargs=1, help="Directory where the db dump should be stored.")
+    p.add_argument("-t", choices=["postgresql", "mongodb", "mysql"], help="Choose the db type", required=True)
     args = p.parse_args()
     if args.c:
-        createbackup(args.c[0], args.t)
+        if args.p:
+            createbackup(args.c[0], args.t, args.p[0])
+        else:
+            createbackup(args.c[0], args.t)
     if args.d:
         delbackup(args.d[0], args.t)

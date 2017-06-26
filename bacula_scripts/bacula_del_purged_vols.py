@@ -101,6 +101,7 @@ def parse_vol(volume, hn=False):
         return None
     log.info("cn:{0}, fn:{1}, jl:{2}, ti:{3}, mt:{4}, vol:{5}, jn:{6}, pn:{7}".format(cn, fn, jl, ti, mt, vol, jn, pn))
     try:
+        ti = ti.replace("\\xc3\\xa4", "ä")  # Temp fix for backups that were made while my locals where broken            
         dt = datetime.strptime(ti, "%d-%b-%Y %H:%M")
     except:
         setlocals()
