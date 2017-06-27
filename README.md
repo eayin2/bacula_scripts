@@ -120,6 +120,7 @@ Job {
   3) Create the actual encfs directory with e.g.:
      ENCFS6_CONFIG="/root/.encfs-keys/encfs6_dropbox01.xml" encfs /mnt/dropbox01/Dropbox/.c01 /mnt/b01/
   See this example config /etc/bacula-scripts/bacula_encfs_backups_conf.py:
+```
      encfs_passphrase = "your_encfs_passphrase"
      encfs_dir = "/mnt/dropbox01/Dropbox/.c01"
      mount_dir = "/mnt/c01"
@@ -129,7 +130,7 @@ Job {
      cmd_password = ["echo", encfs_passphrase]
      cmd_umount = ["fusermount", "-u", mount_dir]
      cmd_lazy_umount = ["fusermount", "-z", "-u", mount_dir]
-
+```
 
 #### Configuration
 See example config in etc/bacula_scripts and modify for your needs. general_conf.py is needed by multiple scripts.
