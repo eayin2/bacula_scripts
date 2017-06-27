@@ -8,14 +8,35 @@ Description:
   Run After Job = /usr/local/bin/encfs-backup-bacula.py umount
 
 User notes:
-- Make sure encfs dir is owned by bacula (chown -R bacula:bacula /mnt/dropbox01/Dropbox/.encfs)
-  Also the dir where encfs is mounted to has to be owned by bacula
+- Make sure encfs encrypted and mount dir is owned by bacula, so if your encfs dir with the dropbox mount is in
+  "/mnt/dropbox01/Dropbox/.encfs", run
+    `chown -R bacula:bacula /mnt/dropbox01/`
+  And for the mount directory e.g.:
+    `chown -R bacula:bacula /mnt/c01`
 - Create the dropbox dir for example in /mnt (not /root), because you need to have it in a traversable
   dir (chmod +x dir).
 - Make sure to mount your encfs dir with `encfs-backup-bacula.py mount` manually before restoring.
 - If you mount encfs by another user than bacula (e.g. root), then make sure to unmount it before
   doing backups, because bareos can't stat dirs mounted by another user, so this script will cancel the
   backup before it starts, when encfs is mounted by another user than bacula.
+- It's recommended to store the encfs private key outside your encfs directory at another location to increase security.
+  How to:
+  1) First create an encfs6.xml by running the command normally in some directory. e.g.:
+     encfs /tmp/encrypted /tmp/decrypted
+  2) Copy /tmp/encrypted/.encfs6.xml (which contains the actual encryiption key within the <encodedKeyData> directive)
+     to some secure location. E.g. copy it to /root/.encfs-keys/
+  3) Create the actual encfs directory with e.g.:
+     ENCFS6_CONFIG="/root/.encfs-keys/encfs6_dropbox01.xml" encfs /mnt/dropbox01/Dropbox/.c01 /mnt/b01/
+  See this example config /etc/bacula-scripts/bacula_encfs_backups_conf.py:
+     encfs_passphrase = "your_encfs_passphrase"
+     encfs_dir = "/mnt/dropbox01/Dropbox/.c01"
+     mount_dir = "/mnt/c01"
+     # Here goes the .encfs6.xml file that we now store outside encfs
+     os.environ["ENCFS6_CONFIG"] = "/root/.encfs-keys/encfs6_dropbox01.xml"
+     cmd_mount = ["encfs", "--stdinpass", encfs_dir, mount_dir]
+     cmd_password = ["echo", encfs_passphrase]
+     cmd_umount = ["fusermount", "-u", mount_dir]
+     cmd_lazy_umount = ["fusermount", "-z", "-u", mount_dir]
 """
 import grp
 import os
