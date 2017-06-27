@@ -136,7 +136,7 @@ Job {
 See example config in etc/bacula_scripts and modify for your needs. general_conf.py is needed by multiple scripts.
 
 #### Install
-You can install this package with `pip3 install bacula_scripts` (tested it in may 2016 successfully).
+You can install this package with `pip3 install bacula_scripts`
 
 #### Deps:
 helputils, gymail, psycopg2
