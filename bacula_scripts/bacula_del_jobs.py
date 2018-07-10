@@ -28,7 +28,9 @@ import psycopg2
 from helputils.core import format_exception, find_mountpoint, systemd_services_up
 
 sys.path.append("/etc/bacula-scripts")
-from bacula_del_jobs_conf import dry_run, storagenames, storagenames_del_only_catalog_entries, jobnames, filters, starttime
+from bacula_del_jobs_conf import (
+    dry_run, storagenames, storagenames_del_only_catalog_entries, jobnames, filters, operator, newer_as, older_as
+)
 from general_conf import db_host, db_user, db_name, db_password, sd_conf, storages_conf, services
 
 placeholder = "%s"  # Building our parameterized sql command
@@ -109,31 +111,27 @@ def main():
                 "WHERE m.mediaid=jm.mediaid " \
                 "AND j.jobid=jm.jobid " \
                 "AND s.storageid=m.storageid "
-        if filters == "jobname":
-            data = jobnames
-            query = query + " AND j.name IN (%s);" % (jobnames_placeholders)
-        elif filters == "or_both":
-            data = storagenames + jobnames
-            query = query + " AND (s.name IN (%s) OR j.name IN (%s));" % (storagenames_placeholders,
-                                                                          jobnames_placeholders)
-        elif filters == "and_both":
-            data = storagenames + jobnames
-            query = query + " AND (s.name IN (%s) OR j.name IN (%s));" % (storagenames_placeholders,
-                                                                          jobnames_placeholders)
-        elif filters == "storage":
-            data = storagenames
-            query = query + " AND s.name IN (%s);" % (storagenames_placeholders)
-        elif filters == "newer_than_starttime":
-            data = starttime
-            query = query + " AND j.starttime >= %s::timestamp;"
-        elif filters == "older_than_starttime":
-            data = starttime
-            query = query + " AND j.starttime <= %s::timestamp;"
+        data = []
+        if operator.lower() == "or":
+            operator2 = " OR "
         else:
-            log.error("Wrong filter or filter not defined.")
-            sys.exit()
+            operator2 = " AND "
+        if all(jobnames):
+            data += jobnames
+            query2 = "j.name IN (%s)" % jobnames_placeholders
+            query += operator2 + query2
+        if all(storagenames):
+            data += storagenames
+            query2 = "s.name IN (%s)" % storagenames_placeholders
+            query += operator2 + query2
+        if all(newer_as):
+            data += newer_as
+            query += operator2 + "j.starttime >= %s::timestamp"
+        if all(older_as):
+            data += older_as
+            query += operator2 + "j.starttime <= %s::timestamp"
         print("Query: %s %s" % (query, str(data)))
-        print(query % str(data))
+        query += ";"
         cur.execute(query, data)
         del_job_media_jm_storage = cur.fetchall()
     except Exception as e:
@@ -142,6 +140,8 @@ def main():
         sd_conf_parsed = parse_conf(f)
     with open(storages_conf, 'r') as f:
         storages_conf_parsed = parse_conf(f)
-    del_job_media_jm_storage = [(w, x, build_volpath(y, z, sd_conf_parsed, storages_conf_parsed), z) for w, x, y, z in
-                                del_job_media_jm_storage if build_volpath(y, z, sd_conf_parsed, storages_conf_parsed)]
+    del_job_media_jm_storage = [
+        (w, x, build_volpath(y, z, sd_conf_parsed, storages_conf_parsed), z) for w, x, y, z in
+        del_job_media_jm_storage if build_volpath(y, z, sd_conf_parsed, storages_conf_parsed)
+    ]
     del_backups(del_job_media_jm_storage)

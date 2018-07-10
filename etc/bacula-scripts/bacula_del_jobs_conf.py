@@ -11,13 +11,11 @@
 # Config:
 dry_run = True  # False|True
 storagenames = ("s4tb02", "s1tb01", "s2tb01", "s3tb01", "sphserver01")
-storagenames_del_only_catalog_entries = ("s3tb01")
+storagenames_del_only_catalog_entries = ("s3tb01",)
+# Need to be tuple. Don't write just ("lt-test01-phserver01")
 jobnames = ("lt-test01-phserver01",)
-# Available filters: 
-#  jobname 
-#  storage
-#  or_both (all jobs matching either given storage or jobname), 
-#  and_both (all job with the given storage name and jobname)
-#  starttime
-starttime = ("2016-12-24 23:59:59",)  # Use "YYYY-MM-DD HH:mm:ss" format
-filters = "newer_than_starttime" 
+# Filter for backups that are older or newer as given starttime
+older_as = ("2016-12-24 23:59:59",)  # Use "YYYY-MM-DD HH:mm:ss" format
+newer_as = ("")
+# Choose between "and" or "or" operator
+operator = "and"

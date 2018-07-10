@@ -151,3 +151,7 @@ Also check in bconsole (on your bacula director) your offsite storage devices st
 copy backups and manually start each to see the bconsole messages for hints.
 
 I run latter steps to find out that my offsite disk was full and thus backups failed.
+
+
+---
+Project started May 2016

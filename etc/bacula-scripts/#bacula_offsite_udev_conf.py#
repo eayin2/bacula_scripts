@@ -36,7 +36,7 @@
 #  . run job=copy_..|bconsole
 # - When job is done (run after job)
 #   (this is the easier way to let bacula tell us when the job is done)
-#  . Initiate del-purged-vols-bacula.py on the bacula-dir server-side (with or without ssh)
+Initiate del-purged-vols-bacula.py on the bacula-dir server-side (with or without ssh)
 #    with 'Run after Job = /usr/local/bin/phpc01-offsite-bacula.py' which runs:
 #                                               
 #    '/usr/local/bin/del-purged-vols-bacula.py; ssh phpc01.ffm01. offsite-udev-bareos.py umount'         
