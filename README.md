@@ -1,15 +1,7 @@
 ## bacula_scripts
 
-#### Description
 This package comes with various bacula and bareos compatible scripts. Scripts were mainly tested
 with bareos.
-
-Meant for one time execution, when you want to delete something specifically:
-- bacula_del_jobs
-- bacula_del_catalog_jobids
-- bacula_del_media_orphans (Removes catalog entries of inexistent volumes, you should run this better manually and not
-  recurring in cron, because if you accidently remove a volume and want to migrate from an offsite backup, then the job
-  entry would also be gone)
 
 #### Install
 You can install this package with `pip3 install bacula_scripts`
