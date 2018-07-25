@@ -1,9 +1,11 @@
-# bacula-offsite-backup-age-watch.py
-#
-# Description:
-# Checking when last offsite backup was done for given jobnames and sending warning notification via mail if time exceeds given limit.
-# Put this in cron.weekly
+""" bacula-offsite-backup-age-watch.py
 
-# Config:
-max_offsite_age = 42  # max time in days before warning message for too old offsite backups
-jobnames = ("example_jobname",)
+Check when the last offsite backup was performed and send a warning notification mail if the
+backup is too old. Add a symlink to this script for example to cron.weekly.
+
+CONFIG: /etc/bacula-scripts/bacula_offsite_backup_age_watch_conf.py
+"""
+
+# Maximum backup age in days, before a warning mail is sent out
+MAX_OFFSITE_AGE_DAYS = 42
+JOB_NAMES = ("example_jobname",)

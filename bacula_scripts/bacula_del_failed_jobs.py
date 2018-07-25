@@ -2,31 +2,32 @@
 # -*- coding: utf-8 -*-
 """ bacula-del-failed-jobs.py
 
-Description:
-Deletes volumes, which are associated with failed jobs.
+Delete all volumes that are associated to failed jobs.
 
-Dev Notes:
-Issuing delete twice, because running it just once, some entries persisted iirc (not sure).
-(Would have to retest this and compare catalog entries between each deletion.)
+Developing notes:
+Issuing delete twice, because running it just once some entries persisted.
+Eventually redo tests by comparing catalog entries between each deletion.
 
-Job Status Code meaning:
+Job Status Code meanings:
 A Canceled by user
 E Terminated in error
+
+NO CONFIG NEEDED
 """
-import re
+import argparse
 import os
 import psycopg2
+import re
 import sys
 from subprocess import Popen, PIPE
 
 from helputils.core import format_exception, systemd_services_up
 from helputils.defaultlog import log
 sys.path.append("/etc/bacula-scripts")
-from bacula_del_failed_jobs_conf import dry_run
 from general_conf import db_host, db_user, db_name, db_password, services
 
 
-def main():
+def run(dry_run=True):
     systemd_services_up(services)
     try:
         con = psycopg2.connect(database=db_name, user=db_user, host=db_host, password=db_password)
@@ -48,3 +49,14 @@ def main():
             p1.stdout.close()
             out, err = p2.communicate()
             log.debug("out: %s, err: %s" % (out, err))
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("-d", action="store_true", help="Delete all failed jobs associated volumes")
+    p.add_argument("-dry", action="store_true", help="Dry run, simulates deletion")
+    args = p.parse_args()
+    if args.d and args.dry:
+        run(dry_run=True)
+    if args.d and not args.dry:
+        run(dry_run=False)

@@ -1,23 +1,28 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """ bacula-del-purged-vols.py
-Description:
-Removing volumes and catalog entries for backups that have been marked 'Purged' based on deletion rules. Script's
-deletion rules are:
-- Don't delete full if there are unpurged (=dependent, =unpruned) incrementals or diffs or less than four fulls.
+
+Remove volumes and catalog entries for backups that have been marked 'Purged' based on the
+deletion rules.
+
+Deletion rules:
+- Don't delete full if there are unpurged (=dependent, =unpruned) incrementals or diffs or less
+  than four fulls.
 - Don't delete diff if there are dependent incrementals or less than two diffs.
 - Don't delete incremental if there are still dependent incrementals in the incremental chain.
-Latter should enforce that incremental backups witihn a chain are deleted all at once.
-This script will also work for remote storage daemons, provided that you setup the ssh alias in /root/.ssh/config
-with the same hostname that you defined for the "Address" (=hostname) in storages.conf.
+  Latter should enforce that incremental backups within a chain are deleted all at once.
+  This script will also work for remote storage daemons, provided that you setup the SSH alias
+  in /root/.ssh/config with the same hostname that you defined for the "Address" (=hostname) in
+  storages.conf.
 
-Why this script?:
-We want to remove purged backups for disk space (scaling reason), but we don't want to delete all
-backups that have been marked as 'Purged', because if you don't do backups for a very long time, but you have
-AutoPrune = yes and your Retention is due then you'll lose backups. Also if you delete a full backup (which was marked
-as purged) but still have incremental backups dependent on it, you'll have a broken incremental backup chain.
+Why this script?
+We want to remove purged backups for disk space, scaling reason, but we don't want to delete all
+backups that have been marked as 'Purged', because if you don't do backups for a very long time,
+and have set 'AutoPrune = yes', plus your Retention is due, then important backups get deleted.
+Also if you delete a full backup, which has been marked 'purged', but still have incremental
+backups dependent on it, then you'll have a broken incremental backup chain.
 
-Dev notes:
+Developing notes:
 (1) We have to get the jobname and backup time from the volume file with bls, because purged volumes dont have any job
     entries in the catalog anymore.
 (2) Notice that we use the clientname and filesetname to check a backup chain for consistency, because the jobname
@@ -27,43 +32,52 @@ Dev notes:
     user.
 
 User notes:
-(1) We dont want to have purged vols recycled/overwritten automatically. because it can happen that we dont do a
-backup for a very long time and then we'd overwrite purged vols that had old backups that would could still needed
-and leave us with no backups at all. Instead our autorm script handles when to delete purged vols.
-=> So make sure that `Recycle = No` is set in bacula configs.
-(2) After you changed Recycle to 'No' you may still have previous volumes marked with Recycle = Yes. To
-make all volumes in your database afterwards non recycable use this query in your db backend:
-UPDATE media SET recycle=0;
-(3) Use `dry_run = True` to test this script.
-(4) If you use an external sd, make sure to setup ssh for it accordingly. IMPORTANT: Notice that this script assumes
-    that your ~/.ssh/config uses the exact same hostname as provided to Address in
-    /etc/bacula/bacula.dir.d/storages.conf for the ssh host alias.
-(5) For copy jobs you have to provide the unique mediatype of the copy jobs storage, then the script will not use the
-    JobLevel from the parsed volume (we parse with the tool bls), but instead checks if it finds in the PoolName (also
-    from the bls output) a hint of what JobLevel the volume is. So this implies that you have to name your volumes
-    with the appropriate joblevel. E.g. "Full-Pool" or "my-full-pool" or "inc-copy-pool" or "incremental-copy-pool".
-    This workaround has to be done, because bacula writes the wrong job level to the volume's metadata (in the catalog
-    it's correct, just not in the volume's metadata, where it always claims that the joblevel is 'I' for incremental),
-    but then our script's deletion algorithm won't work, so we need to know the job level to decide if a volume can't
-    be deleted.
+(1) We dont want to have purged vols recycled/overwritten automatically. because it can happen
+    that we dont do a backup for a very long time and then we'd overwrite purged vols that had
+    old backups that would could still needed and leave us with no backups at all. Instead our
+    autorm script handles when to delete purged vols.
+    => Make sure to set `Recycle = No` in bacula configs.
+(2) After you changed Recycle to 'No' you may still have previous volumes marked with
+    'Recycle = Yes'. To make all volumes in your database afterwards non recycable use this
+    query in your db backend:
+    `UPDATE media SET recycle=0;`
+(3) Use `DRY_RUN = True` to simulate this script.
+(4) If you use an external SD, make sure to setup SSH accordingly.
+    IMPORTANT! Notice that this script assumes your '~/.ssh/config' uses the exact same FQDN
+    as provided in the 'Address' directive of /etc/bacula/bacula.dir.d/storages.conf for the SSH
+    host alias.
+(5) For copy jobs provide the unique 'mediatype' of the copy jobs storage, so that the
+    script won't use the 'JobLevel' from the parsed volume. We parse with the tool `bls`
+    and check if we find a hint of `bls` output in the 'PoolName' of the JobLevel.
+    This implies that you have to name your volumes with the appropriate joblevel. That is
+    e.g. "Full-Pool" or "my-full-pool" or "inc-copy-pool" or "incremental-copy-pool".
+    This workaround is required, because bacula writes the wrong job level to the volume's
+    metadata. In the catalog it's correct, just not in the volume's metadata, where it always
+    claims that the joblevel is 'I' for incremental. So our script's deletion algorithm wouldn't
+    work, therefore in that case we need to know the job level to decide if a volume can't be
+    deleted.
 (6) For remote storage daemons setup the ssh config like this for example:
-        Host phpc01e.ffm01.
-        Hostname phpc01e.ffm01.
-        Port 22
-        IdentityFile ~/.ssh/id_phpc01_ed25519
-        IdentitiesOnly yes
-        User someuser
-        ConnectTimeout=5
-    Now also make sure that you add following commands for the ssh user in sudoers with NOPASSWD:
-        someuser ALL=NOPASSWD: /usr/bin/cat /etc/bareos/bareos-sd.conf
-        someuser ALL=NOPASSWD: /usr/bin/timeout 0.1 bls -jv *
-        someuser ALL=NOPASSWD: /usr/bin/rm /mnt/path/to/your/offsite/storage/*
+      Host phpc01e.ffm01.
+      Hostname phpc01e.ffm01.
+      Port 22
+      IdentityFile ~/.ssh/id_phpc01_ed25519
+      IdentitiesOnly yes
+      User someuser
+      ConnectTimeout=5
+    Now also make sure that you add following commands for the SSH user in sudoers with
+    NOPASSWD or just SSH to root@your.host!
+      someuser ALL=NOPASSWD: /usr/bin/cat /etc/bareos/bareos-sd.conf
+      someuser ALL=NOPASSWD: /usr/bin/timeout 0.1 bls -jv *
+      someuser ALL=NOPASSWD: /usr/bin/rm /mnt/path/to/your/offsite/storage/*
+
+CONFIG: /etc/bacula-scripts/bacula_del_purged_vols_conf.py
 """
-import re
+import argparse
 import os
+import re
 import sys
-import traceback
 import time
+import traceback
 import socket
 from datetime import datetime
 from subprocess import Popen, PIPE
@@ -73,8 +87,17 @@ from helputils.core import (format_exception, islocal, _isfile, find_mountpoint,
                             systemd_services_up, setlocals)
 from helputils.defaultlog import log
 sys.path.append("/etc/bacula-scripts")
-from bacula_del_purged_vols_conf import offsite_mt, dry_run, del_vols_with_no_metadata
+import bacula_del_purged_vols_conf as conf_mod
+from bacula_scripts.bacula_parser import bacula_parse
 from general_conf import sd_conf, storages_conf, db_host, db_user, db_name, db_password, services
+
+
+def CONF(attr):
+    return getattr(conf_mod, attr, None)
+
+
+def CONF_SET(attr, val):
+    return setattr(conf_mod, attr, val)
 
 
 def parse_vol(volume, hn=False):
@@ -101,68 +124,39 @@ def parse_vol(volume, hn=False):
         return None
     log.info("cn:{0}, fn:{1}, jl:{2}, ti:{3}, mt:{4}, vol:{5}, jn:{6}, pn:{7}".format(cn, fn, jl, ti, mt, vol, jn, pn))
     try:
-        ti = ti.replace("\\xc3\\xa4", "ä")  # Temp fix for backups that were made while my locals where broken            
+        ti = ti.replace("\\xc3\\xa4", "ä")  # Temp fix for backups that were made while my locals where broken
         dt = datetime.strptime(ti, "%d-%b-%Y %H:%M")
     except:
         setlocals()
-        dt = datetime.strptime(ti, "%d-%b-%Y %H:%M")        
+        dt = datetime.strptime(ti, "%d-%b-%Y %H:%M")
     ts = time.mktime(dt.timetuple())
     return (cn, fn, ts, jl, jn, mt, pn)
 
 
 def build_volpath(volname, storagename, sd_conf_parsed, storages_conf_parsed, hn=False):
     """Looks in config files for device path and returns devicename joined with the volname."""
-    for storage in storages_conf_parsed:
-        if storagename == storage["Name"]:
-            devicename = storage["Device"]
-            for device in sd_conf_parsed:
-                if devicename == device["Name"]:
-                    volpath = os.path.join(device["Archive Device"], volname)
+    for storage_name, storage_value in storages_conf_parsed["Storage"].items():
+        if storagename == storage_name:
+            devicename = storage_value["Device"]
+            for device_name, device_value in sd_conf_parsed["Device"].items():
+                if devicename == device_name:
+                    print(device_value)
+                    volpath = os.path.join(device_value["ArchiveDevice"], volname)
                     # log.info("volpath %s: devicename in sd_conf and storages_conf matched: %s" % (volpath,
                     #           devicename))
-                    if not find_mountpoint(device["Archive Device"], hn) == "/":
+                    if not find_mountpoint(device_value["ArchiveDevice"], hn) == "/":
                         return volpath
-
-
-def parse_conf(lines):
-    parsed = []
-    obj = None
-    for line in lines:
-        line, hash, comment = line.partition("#")
-        line = line.strip()
-        if not line:
-            continue
-        m = re.match(r"(\w+)\s*{", line)
-        if m:
-            # Start a new object
-            if obj is not None:
-                raise Exception("Nested objects!")
-            obj = {"thing": m.group(1)}
-            parsed.append(obj)
-            continue
-        m = re.match(r"\s*}", line)
-        if m:
-            # End an object
-            obj = None
-            continue
-        m = re.match(r"\s*([^=]+)\s*=\s*(.*)$", line)
-        if m:
-            # An attribute
-            key, value = m.groups()
-            obj[key.strip()] = value.rstrip(";")
-            continue
-    return parsed
 
 
 def storagehostname(storages_conf_parsed, sn):
     """Parses stoarges.conf for storagename and returns address of storage"""
-    for storage in storages_conf_parsed:
-        if sn == storage["Name"]:
-            return storage["Address"]
+    for storage_name, storage_value in storages_conf_parsed["Storage"].items():
+        if sn == storage_name:
+            return storage_value["Address"]
 
 
 def del_backups(remove_backup):
-    """Deletes list of backups from disk and catalog. 
+    """Deletes list of backups from disk and catalog.
 
     Make sure to add to your sudoers file something like:
     `user ALL=NOPASSWD: /usr/bin/rm /mnt/8tb01/offsite01/*`. Notice that I added the offsite's path with the
@@ -171,7 +165,7 @@ def del_backups(remove_backup):
     for volpath, hn in remove_backup:
         volname = os.path.basename(volpath)
         log.info("Deleting %s:%s" % (hn, volpath))
-        if not dry_run:
+        if not CONF('DRY_RUN'):
             if islocal(hn):
                 try:
                     os.remove(volpath)
@@ -199,7 +193,8 @@ def del_backups(remove_backup):
             log.debug("out: %s, err: %s" % (out, err))
 
 
-def main():
+def run(dry_run=False):
+    CONF_SET('DRY_RUN', dry_run)
     systemd_services_up(services)
     try:
         con = psycopg2.connect(database=db_name, user=db_user, host=db_host, password=db_password)
@@ -223,10 +218,10 @@ def main():
         log.error(format_exception(e))
     unpurged_backups = [x for x in volumes if x[2] != "Purged"]
     full_purged, diff_purged, inc_purged, remove_backup = [list() for x in range(4)]
-    with open(sd_conf, "r") as f:
-        sd_conf_parsed = parse_conf(f)
-    with open(storages_conf, "r") as f:
-        storages_conf_parsed = parse_conf(f)
+
+    sd_conf_parsed = bacula_parse("bareos-sd")
+    storages_conf_parsed = bacula_parse("bareos-dir")
+
     log.info("\n\n\n\nSorting purged volumes to full_purged, diff_purged and inc_purged.\n\n")
     log.info("There are %s purged_vols and %s unpurged_backups" % (len(purged_vols), len(unpurged_backups)))
     for volname, storagename in purged_vols:
@@ -234,8 +229,8 @@ def main():
         if islocal(hn):
             volpath = build_volpath(volname, storagename, sd_conf_parsed, storages_conf_parsed)
         elif not islocal(hn):
-            remote_sd_conf = remote_file_content(hn, sd_conf)
-            remote_sd_conf_parsed = parse_conf(remote_sd_conf)
+            log.info("content of %s:%s (hn:filename)" % (hn, fn))
+            remote_sd_conf_parsed = bacula_parse("bareos-sd", hn=hn)
             volpath = build_volpath(volname, storagename, remote_sd_conf_parsed, storages_conf_parsed, hn)
         if not volpath:
             log.info("Skipping this purged volume, because storage device is not mounted. %s:%s" % (hn, volpath))
@@ -249,7 +244,7 @@ def main():
             if vol_parsed:
                 cn, fn, ts, jl, jn, mt, pn = vol_parsed
             else:
-                if del_vols_with_no_metadata:
+                if CONF('DEL_VOLS_WITH_NO_METADATA'):
                     log.info("Removing volume, because it has no metadata. Removing both file and catalog record.")
                     os.remove(volpath)
                     p1 = Popen(["echo", "delete volume=%s yes" % volname], stdout=PIPE)
@@ -261,8 +256,9 @@ def main():
         else:
             continue
         x1 = (volpath, cn, fn, ts, hn, jn, mt)
-        if mt in offsite_mt:  # This is a workaround for copy volumes, which don't store the right job level. Notice
-            # this works only if your pool names include the job level (e.g. full, inc or diff).
+        # Workaround for copy volumes, which don't store the right job level. Notice
+        #  this works only if your pool names include the job level (e.g. full, inc or diff)
+        if mt in CONF('OFFSITE_MT'):
             pnl = pn.lower()
             if "full" in pnl:
                 jl = "F"
@@ -369,3 +365,14 @@ def main():
     if len(remove_backup) == 0:
         log.info("Nothing to delete")
     del_backups(remove_backup)
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("-d", action="store_true", help="Remove purged jobs from catalog and disk")
+    p.add_argument("-dry", action="store_true", help="Simulate deletion")
+    args = p.parse_args()
+    if args.d and args.dry:
+        run(dry_run=True)
+    elif args.d and not args.dry:
+        run(dry_run=False)

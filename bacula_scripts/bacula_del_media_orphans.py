@@ -1,12 +1,14 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """ bacula-del-media-orphans.py
-Description:
-Deletes all associated catalog entries of those media entries, which backup volume doesn't exist anymore.
-Set dry_run = True to print orphanned entries without deleting them, else set dry_run=False.
+
+Delete all catalog entries, which backup volume doesn't exist anymore.
+
+CONFIG: /etc/bacula-scripts/bacula_del_media_orphans_conf.py 
 """
-import re
+import argparse
 import os
+import re
 import sys
 import traceback
 from datetime import datetime
@@ -17,41 +19,16 @@ import psycopg2
 from helputils.core import format_exception, find_mountpoint, remote_file_content, _isfile, islocal, systemd_services_up
 from helputils.defaultlog import log
 sys.path.append("/etc/bacula-scripts")
-from bacula_del_media_orphans_conf import dry_run, del_orphan_log, verbose
+import bacula_del_media_orphans_conf as conf_mod
+from bacula_scripts.bacula_parser import bacula_parse
 from general_conf import db_host, db_user, db_name, db_password, sd_conf, storages_conf, services
 
 
-def parse_conf(lines):
-    parsed = []
-    obj = None
-    for line in lines:
-        line, hash, comment = line.partition('#')
-        line = line.strip()
-        if not line:
-            continue
-        m = re.match(r"(\w+)\s*{", line)
-        if m:
-            # Start a new object
-            if obj is not None:
-                raise Exception("Nested objects!")
-            obj = {'thing': m.group(1)}
-            parsed.append(obj)
-            continue
-        m = re.match(r"\s*}", line)
-        if m:
-            # End an object
-            obj = None
-            continue
-        m = re.match(r"\s*([^=]+)\s*=\s*(.*)$", line)
-        if m:
-            # An attribute
-            key, value = m.groups()
-            obj[key.strip()] = value.rstrip(';')
-            continue
-    return parsed
+def CONF(attr):
+    return getattr(conf_mod, attr, None)
 
 
-def main():
+def run(dry_run=False):
     systemd_services_up(services)
     try:
         con = psycopg2.connect(database=db_name, user=db_user, host=db_host, password=db_password)
@@ -60,35 +37,44 @@ def main():
         media_storage = cur.fetchall()  # e.g. [('Incremental-ST-0126', 's8tb01'), ('Full-ST-0031', 's8tb01'), ..]
     except Exception as e:
         print(format_exception(e))
-    with open(storages_conf, "r") as myfile:
-        storages_conf_parsed = parse_conf(myfile)
+    ##
+    storages_conf_parsed = bacula_parse("bareos-dir")
     for volname, storagename in media_storage:
-        for storage in storages_conf_parsed:
-            hn = storage["Address"]
+        for storage_name, storage_value in storages_conf_parsed["Storage"].items():
+            hn = storage_value["Address"]
             if not islocal(hn):
-                remote_sd_conf = remote_file_content(hn, sd_conf)
-                sd_conf_parsed = parse_conf(remote_sd_conf)
+                sd_conf_parsed = bacula_parse("bareos-sd", hn=hn)
             else:
-                with open(sd_conf, "r") as myfile:
-                    sd_conf_parsed = parse_conf(myfile)
-            if storagename == storage["Name"]:
-                devicename = storage["Device"]
-                for device in sd_conf_parsed:
-                    if devicename == device["Name"]:
-                        volpath = os.path.join(device["Archive Device"], volname)
-                        if verbose:
+                sd_conf_parsed = bacula_parse("bareos-sd")
+            if storagename == storage_name:
+                devicename = storage_value["Device"]
+                for device_name, device_value in sd_conf_parsed["Device"].items():
+                    if devicename == device_name:
+                        volpath = os.path.join(device_value["ArchiveDevice"], volname)
+                        if CONF('VERBOSE'):
                             log.debug("hn: %s" % hn)
-                        if not find_mountpoint(device["Archive Device"], hn) == "/":
+                        if not find_mountpoint(device_value["ArchiveDevice"], hn) == "/":
                             if not _isfile(volpath, hn):
                                 log.info("Deleted volume %s from catalog, because file doesn't exist." % volpath)
-                                with open(del_orphan_log, 'a') as f:
+                                with open(CONF('LOG'), 'a') as f:
                                     time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                                     f.write("{0} {1}\n".format(time, volpath))
-                                if not dry_run:
+                                if not dry_run or not CONF('DRY_RUN'):
                                     p1 = Popen(["echo", "delete volume=%s yes" % volname], stdout=PIPE)
                                     p2 = Popen(["bconsole"], stdin=p1.stdout, stdout=PIPE)
                                     p1.stdout.close()
                                     out, err = p2.communicate()
                                     log.debug("out: %s, err: %s" % (out, err))
-                            elif verbose is True:
+                            elif CONF('VERBOSE') is True:
                                 log.info('File exists for %s' % volpath)
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("-d", action="store_true", help="Delete jobs and storage files")
+    p.add_argument("-dry", action="store_true", help="Simulate deletion")
+    args = p.parse_args()
+    if args.d and args.dry:
+        run(dry_run=True)
+    elif args.d and not args.dry:
+        run(dry_run=False)

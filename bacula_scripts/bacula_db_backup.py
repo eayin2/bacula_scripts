@@ -1,8 +1,17 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-"""
-Creates or deletes db dumps. Run before and after backups for a specific db.
-E.g. /usr/local/bin/bacula-postgres-backup.py -c mf24
+""" bacula_db_backup.py
+
+You can create or delete database dumps of postgresql, mongodb and mysql backends.
+
+Use this for example within your job:
+  Run Before Job = "bacula_db_backup -c mf24 -p '/db_dumps' -t postgresql"
+  Run After Job = "bacula_db_backup -d mf24 -p '/db_dumps' -t postgresql"
+
+To prevent permission issues, create a '/db_dumps' directory with 777 permissions:
+`mkdir -m 777 /db_dump`. The directory has to be accessed namely by both postgres and bareos.
+
+NO CONFIG NEEDED
 """
 import argparse
 import datetime as dt
@@ -14,9 +23,6 @@ from subprocess import Popen, PIPE
 from helputils.core import mkdir_p
 from helputils.defaultlog import log
 
-# Config
-dbbackupdir = "/tmp/dbbackup"
-mkdir_p(dbbackupdir)
 os.environ["PGUSER"] = "postgres"
 
 
@@ -39,7 +45,7 @@ def createbackup(dbname, dbtype, dbbackupdir=dbbackupdir):
     log.debug(o)
 
 
-def delbackup(dbname, dbtype):
+def delbackup(dbname, dbtype, dbbackupdir=dbbackupdir):
     """Delete backups"""
     fn = os.path.join(dbbackupdir, "%s_%s" % (dbtype, dbname))
     bd = glob.glob("%s_*" % fn)
@@ -60,16 +66,20 @@ for x in services:
 
 # Argparse
 def main():
-    p = argparse.ArgumentParser()
+    p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("-d", nargs=1, help="Delete a db dump backup.")
     p.add_argument("-c", nargs=1, help="Create a db dump backup.")
-    p.add_argument("-p", nargs=1, help="Directory where the db dump should be stored.")
+    p.add_argument(
+        "-dir",
+        nargs=1,
+        help="Specify the db backup directory. E.g. '/tmp/dbbackup' ",
+        required=True
+    )
     p.add_argument("-t", choices=["postgresql", "mongodb", "mysql"], help="Choose the db type", required=True)
     args = p.parse_args()
+    dbbackupdir = args.dir[0]
+    mkdir_p(dbbackupdir)
     if args.c:
-        if args.p:
-            createbackup(args.c[0], args.t, args.p[0])
-        else:
-            createbackup(args.c[0], args.t)
+        createbackup(args.c[0], args.t, dbbackupdir=dbbackupdir)
     if args.d:
-        delbackup(args.d[0], args.t)
+        delbackup(args.d[0], args.t, dbbackupdir=dbbackupdir)

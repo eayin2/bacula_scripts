@@ -1,83 +1,66 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """ bacula-del-jobs.py
-Description:
-Deletes all catalog entries that are associated to the given storage_name and also tries to delete the volume on
-disk. Notice that it deletes volumes matching given storage name OR give job names.
-This is only intended to run when you really want to delete something specifically. Doesn't work for remote storage
-devices.
 
-If you need to remove also backups from your dropbox encfs storage, then mount it e.g. simply with 
-`/usr/bin/bacula_encfs_backup mount` (which mounts e.g. to /mnt/b01 depending on your
-/etc/bacula-scripts/bacula_encfs_backup_conf.py configuration) and then bacula-del-jobs.py will also remove backups from
-there. Important: Make sure unmount it afterwards again, because bacula user can't unmount other users mountpoints.
+WARNING! Use with caution.
 
-If you use passphrases for your remote clients, make sure to run `ssh-add -t 10m /path/to/your/ssh/key` before running
-this script, because else you get prompted permanently for your passphrase.
+Delete all catalog entries that are associated to the given storage_name and their volume file
+on the disk. Delete volumes that match the storage name or the job names.
+Run this script only when you really want to delete something specifically.
+This script doesn't work with remote storage devices.
+
+If you need to remove backups from your dropbox encfs storage, then mount the encfs
+storage. Use: `/usr/bin/bacula_encfs_backup mount`, which mounts it for example to /mnt/b01,
+see /etc/bacula-scripts/bacula_encfs_backup_conf.py. bacula-del-jobs.py will then also remove
+backups from /mnt/b01. Important! Unmount it afterwards, because the bacula user can't unmount
+other users mountpoints.
+
+If you use passphrases for your remote clients, run `ssh-add -t 10m /path/to/your/ssh/key`
+before this script, else you'd get prompted repeatedly for the passphrase.
+
+CONFIG: /etc/bacula_scripts/bacula_del_jobs_conf.py
 """
-import re
+import argparse
 import os
+import re
 import sys
-import traceback
 import time
+import traceback
 from datetime import datetime
 from subprocess import Popen, PIPE
 
 import psycopg2
-
 from helputils.core import format_exception, find_mountpoint, systemd_services_up
 
 sys.path.append("/etc/bacula-scripts")
-from bacula_del_jobs_conf import (
-    dry_run, storagenames, storagenames_del_only_catalog_entries, jobnames, filters, operator, newer_as, older_as
-)
+import bacula_del_jobs_conf as conf_mod
+from bacula_scripts.bacula_parser import bacula_parse
 from general_conf import db_host, db_user, db_name, db_password, sd_conf, storages_conf, services
 
+
+def CONF(attr):
+    return getattr(conf_mod, attr, None)
+
+
+def CONF_SET(attr, val):
+    return setattr(conf_mod, attr, val)
+
+
 placeholder = "%s"  # Building our parameterized sql command
-jobnames_placeholders = ', '.join([placeholder] * len(jobnames))
-storagenames_placeholders = ', '.join([placeholder] * len(storagenames))
-
-
-def parse_conf(lines):
-    parsed = []
-    obj = None
-    for line in lines:
-        line, hash, comment = line.partition('#')
-        line = line.strip()
-        if not line:
-            continue
-        m = re.match(r'(\w+)\s*{', line)
-        if m:
-            # Start a new object
-            if obj is not None:
-                raise Exception('Nested objects!')
-            obj = {'thing': m.group(1)}
-            parsed.append(obj)
-            continue
-        m = re.match(r'\s*}', line)
-        if m:
-            # End an object
-            obj = None
-            continue
-        m = re.match(r'\s*([^=]+)\s*=\s*(.*)$', line)
-        if m:
-            # An attribute
-            key, value = m.groups()
-            obj[key.strip()] = value.rstrip(';')
-            continue
-    return parsed
+jobnames_placeholders = ', '.join([placeholder] * len(CONF('DEL_JOB_NAMES')))
+storagenames_placeholders = ', '.join([placeholder] * len(CONF('DEL_STORAGE_NAMES')))
 
 
 def build_volpath(volname, storagename, sd_conf_parsed, storages_parsed):
     """Looks in config files for device path and returns devicename joined with the volname."""
-    for storage in storages_parsed:
-        if storagename == storage['Name']:
-            devicename = storage['Device']
-            for device in sd_conf_parsed:
-                if devicename == device['Name']:
-                    volpath = os.path.join(device['Archive Device'], volname)
-                    if (not find_mountpoint(device["Archive Device"]) == "/" or storagename in
-                            storagenames_del_only_catalog_entries):
+    for storage_name, storage_value in storages_parsed["Storage"].items():
+        if storagename == storage_name:
+            devicename = storage_value['Device']
+            for device_name, device_value in sd_conf_parsed["Device"].items():
+                if devicename == device_name:
+                    volpath = os.path.join(device_value['ArchiveDevice'], volname)
+                    if (not find_mountpoint(device_value["ArchiveDevice"]) == "/" or storagename in
+                            CONF('DEL_STORAGE_NAMES_CATALOG')):
                         return volpath
                     else:
                         print("Device %s not mounted. Please mount it." % devicename)
@@ -88,8 +71,8 @@ def del_backups(b):
     """Deletes list of backups from disk and catalog"""
     for x, y, volpath, z in b:
         volname = os.path.basename(volpath)
-        print('Deleting jobid: %s jn: %s vol: %s' % (x, y, volpath))
-        if not dry_run:
+        print("Deleting jobid: %s jn: %s vol: %s" % (x, y, volpath))
+        if not CONF('DRY_RUN'):
             try:
                 os.remove(volpath)
                 print("Deleted file %s" % volpath)
@@ -102,46 +85,70 @@ def del_backups(b):
             print(out, err)
 
 
-def main():
+def run(dry_run=False):
+    if dry_run:
+        CONF_SET('DRY_RUN', dry_run)
     systemd_services_up(services)
     try:
         con = psycopg2.connect(database=db_name, user=db_user, host=db_host, password=db_password)
         cur = con.cursor()
-        query = "select distinct j.jobid, j.name, m.volumename, s.name from job j, media m, jobmedia jm, storage s " \
-                "WHERE m.mediaid=jm.mediaid " \
-                "AND j.jobid=jm.jobid " \
-                "AND s.storageid=m.storageid "
+        query = """
+SELECT DISTINCT j.jobid, j.name, m.volumename, s.name
+FROM job j, media m, jobmedia jm, storage s
+WHERE m.mediaid=jm.mediaid
+AND j.jobid=jm.jobid
+AND s.storageid=m.storageid
+"""
         data = []
-        if operator.lower() == "or":
+        if CONF('OPERATOR').lower() == "or":
             operator2 = " OR "
         else:
             operator2 = " AND "
-        if all(jobnames):
-            data += jobnames
+        if all(CONF('DEL_JOB_NAMES')):
+            data += CONF('DEL_JOB_NAMES')
             query2 = "j.name IN (%s)" % jobnames_placeholders
             query += operator2 + query2
-        if all(storagenames):
-            data += storagenames
+        if all(CONF('DEL_STORAGE_NAMES')):
+            data += CONF("DEL_STORAGE_NAMES")
             query2 = "s.name IN (%s)" % storagenames_placeholders
             query += operator2 + query2
-        if all(newer_as):
-            data += newer_as
+        if all(CONF('DEL_NEWER')):
+            data += CONF('DEL_NEWER')
             query += operator2 + "j.starttime >= %s::timestamp"
-        if all(older_as):
-            data += older_as
+        if all(CONF('DEL_OLDER')):
+            data += CONF('DEL_OLDER')
             query += operator2 + "j.starttime <= %s::timestamp"
         print("Query: %s %s" % (query, str(data)))
         query += ";"
         cur.execute(query, data)
         del_job_media_jm_storage = cur.fetchall()
+        print(del_job_media_jm_storage)
     except Exception as e:
         print(format_exception(e))
-    with open(sd_conf, 'r') as f:
-        sd_conf_parsed = parse_conf(f)
-    with open(storages_conf, 'r') as f:
-        storages_conf_parsed = parse_conf(f)
+        print(
+            "\n\nYour config /etc/bacula-scripts/bacula_del_jobs_conf.py has an error.\n"\
+            "Check if all your configured values are in the tuple format. E.g.:\n"\
+            "DEL_NEWER = ('',) and not DEL_NEWER = ('')"
+        )
+        return
+    sd_conf_parsed = bacula_parse("bareos-sd")
+    storages_conf_parsed = bacula_parse("bareos-dir")
     del_job_media_jm_storage = [
         (w, x, build_volpath(y, z, sd_conf_parsed, storages_conf_parsed), z) for w, x, y, z in
         del_job_media_jm_storage if build_volpath(y, z, sd_conf_parsed, storages_conf_parsed)
     ]
     del_backups(del_job_media_jm_storage)
+
+
+def main():
+    p = argparse.ArgumentParser(description="""
+Delete catalog entries and associated volumes from disk, based on configured settings in\
+/etc/bacula_scripts/bacula_del_jobs_conf.py.
+""")
+    p.add_argument("-d", action="store_true", help="Delete jobs and storage files")
+    p.add_argument("-dry", action="store_true", help="Simulate deletion")
+    args = p.parse_args()
+    if args.d and args.dry:
+        run(dry_run=True)
+    elif args.d and not args.dry:
+        run(dry_run=False)

@@ -1,21 +1,27 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """ bacula-del-jobs.py
-Description:
-Removes full media vols which follow after each in a short timespan, to save space.
-# F F F I F F F D F F F F F F F F
-#   x       x       x x x x x   x
-# So basically i want a full backup every 3 weeks, so i just get a list of all consecutive Full backups
-# and i make sure to mark the Full backups that are allowed to be deleted, because only a Full backup which has a Full
-# follower is allowed to be deleted:
-# then i apply the even spread function and have maximum 1 Full backup within 3 weeks. even spread function should favor
-# the older backups
+
+Delete redundant full media vols which are following to narrowly.
+
+Example:
+ F F F I F F F D F F F F F F F F
+   x       x       x x x x x   x
+
+We want a full backup every 3 weeks, so we get a list of all consecutive Full backups
+and make sure to mark the Full backups, that are allowed to be deleted. Only Full backups,
+which have a Full following backup are allowed to be deleted.
+Then apply the even spread function and have at maximum 1 Full backup within 3 weeks.
+The even spread function favors older backups.
+
+CONFIG: /etc/bacula-scripts/bacula_prune_scattered_conf.py
 """
-import re
+import argparse
 import os
+import re
 import sys
-import traceback
 import time
+import traceback
 from datetime import datetime
 from math import ceil
 from subprocess import Popen, PIPE
@@ -27,14 +33,18 @@ from helputils.core import format_exception, find_mountpoint, systemd_services_u
 from helputils.defaultlog import log
 
 sys.path.append("/etc/bacula-scripts")
-from bacula_prune_scattered_conf import dry_run, fileset, poolnames, jname
+import bacula_prune_scattered_conf as conf_mod
 from general_conf import db_host, db_user, db_name, db_password, services
+
+
+def CONF(attr):
+    return getattr(conf_mod, attr, None)
 
 
 def prune(b):
     """Deletes list of backups from disk and catalog"""
     for ts, nm in b:
-        if not dry_run:
+        if not CONF('DRY_RUN'):
             p1 = pexpect.spawn("/usr/sbin/bconsole")
             p1.logfile = open("/tmp/pexpectlog", "wb")
             p1.sendline('prune volume=%s' % nm)
@@ -63,7 +73,7 @@ AND j.jobid=jm.jobid
 AND m.volstatus!='Purged'
 AND j.name LIKE '{2}'
 ORDER BY j.jobtdate;
-""".format(fileset, poolnames, jname).replace("\n", " ")
+""".format(CONF('FILESET'), CONF('POOL_NAMES'), CONF('JOB_NAME')).replace("\n", " ")
 
 
 def backuplevel(x):
@@ -85,7 +95,7 @@ def evenspread(sequence, num):
         yield sequence[int(ceil(i * length / num))]
 
 
-def main():
+def run(dry_run=False):
     systemd_services_up(services)
     try:
         con = psycopg2.connect(database=db_name, user=db_user, host=db_host, password=db_password)
@@ -119,3 +129,14 @@ def main():
     print("keeping %s" % len(keep))
     print("purging %s" % len(prunes))
     prune(prunes)
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("-d", action="store_true", help="Delete redundant full media volumes")
+    p.add_argument("-dry", action="store_true", help="Simulate deletion")
+    args = p.parse_args()
+    if args.d and args.dry:
+        run(dry_run=True)
+    elif args.d and not args.dry:
+        run(dry_run=False)

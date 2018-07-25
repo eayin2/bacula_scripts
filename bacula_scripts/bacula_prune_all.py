@@ -1,12 +1,16 @@
 #!/usr/bin/python3
 # -*- coding: utf-8-*-
-""" bacula-prune-all.py                                                                                                                                                                  
-Runs `bconsole prune volume=x yes` for all existing volumes. Latter command will only prune the volume if the configured
-retention time is passed.
+""" bacula-prune-all.py
+
+Prune all existing volumes. Run `bconsole prune volume=x yes` for all existing volumes. Latter
+command will only prune the volume, if the configured retention time is passed.
+
+NO CONFIG
 """
-import re
+import argparse
 import os
 import psycopg2
+import re
 import sys
 from subprocess import Popen, PIPE
 
@@ -15,17 +19,18 @@ from helputils.defaultlog import log
 sys.path.append("/etc/bacula-scripts")
 from general_conf import db_host, db_user, db_name, db_password, services
 
-dry_run = False
-sql = "SELECT DISTINCT m.volumename FROM jobmedia jm, media m, job j "\
-      "WHERE m.mediaid=jm.mediaid "\
-      "AND j.jobid=jm.jobid "\
-      "AND m.volstatus='Used' "\
-      "AND j.jobbytes!=0 "\
-      "AND j.jobfiles!=0 "\
-      "AND j.jobstatus='T';"
+sql = """
+SELECT DISTINCT m.volumename FROM jobmedia jm, media m, job j
+WHERE m.mediaid=jm.mediaid
+AND j.jobid=jm.jobid
+AND m.volstatus='Used'
+AND j.jobbytes!=0
+AND j.jobfiles!=0
+AND j.jobstatus='T';
+"""
 
 
-def main():
+def run(dry_run=False):
     systemd_services_up(services)
     try:
         con = psycopg2.connect(database=db_name, user=db_user, host=db_host, password=db_password)
@@ -42,3 +47,13 @@ def main():
             p1.stdout.close()
             out, err = p2.communicate()
             log.debug("out: %s, err: %s" % (out, err))
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("-p", action="store_true", help="Prune all volumes")
+    p.add_argument("-dry", action="store_true", help="Simulate deletion")
+    args = p.parse_args()
+    if args.p and args.dry:
+        run(dry_run=True)
+    elif args.p and not args.dry:
+        run(dry_run=False)

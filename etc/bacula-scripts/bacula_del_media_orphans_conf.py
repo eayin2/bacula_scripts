@@ -1,14 +1,13 @@
-# bacula-del-media-orphans.py
-#                                                                      
-#                                                                                                                                                                                              
-# Description:
-#                                                                                                                                            
-# Deletes all associated catalog entries of those media entries, which backup volume doesn't exist anymore.
-#                                                                                                                                            
-# Set dry_run = True to print orphanned entries without deleting them, else set dry_run=False.
-#                                                                                                                                            
-dry_run = False
-#dry_run = True
-del_orphan_log = "/var/log/bareos/deleted_orphans.log"
-verbose = True
-#verbose = False  
+""" bacula-del-media-orphans.py
+
+Delete all catalog entries, which backup volume doesn't exist anymore.
+
+CONFIG: /etc/bacula-scripts/bacula_del_media_orphans_conf.py
+"""
+
+# DRY_RUN: Set True to simulate deletion.
+DRY_RUN = False
+# LOG: Path of log file.
+LOG = "/var/log/bareos/deleted_orphans.log"
+# VERBOSE: True or False
+VERBOSE = True

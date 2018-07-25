@@ -1,5 +1,5 @@
 """ bacula-del-jobs.py
-
+n
 WARNING! Use with caution.
 
 Delete all catalog entries that are associated to the given storage_name and their volume file
@@ -31,6 +31,6 @@ DEL_JOB_NAMES = ("lt-test01-phserver01",)
 # Filter for backups that are older a given starttime
 DEL_OLDER = ("2016-12-24 23:59:59",)  # Use "YYYY-MM-DD HH:mm:ss" format
 # Filter for backups that are newer a given starttime
-DEL_NEWER = ("",)
+DEL_NEWER = ("")
 # Choose between 'AND' or 'OR' operator, that is match all filters or one of them.
 OPERATOR = "AND"

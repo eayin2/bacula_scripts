@@ -138,8 +138,8 @@ See example config in etc/bacula_scripts and modify for your needs. general_conf
 #### Install
 You can install this package with `pip3 install bacula_scripts`
 
-#### Deps:
-helputils, gymail, psycopg2
+#### Dependencies
+helputils, gymail, psycopg2, lark-parser
 
 Also make sure bacula tools are installed, because the CLI tool `bls` is required.
 
@@ -153,5 +153,188 @@ copy backups and manually start each to see the bconsole messages for hints.
 I run latter steps to find out that my offsite disk was full and thus backups failed.
 
 
+
+# This package comes with following scripts:
+
+#### usage: bacula_db_backup [-h] [-d D] [-c C] [-p P] -t
+                        {postgresql,mongodb,mysql}
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -d D                  Delete a db dump backup.
+  -c C                  Create a db dump backup.
+  -p P                  Directory where the db dump should be stored.
+  -t {postgresql,mongodb,mysql}
+                        Choose the db type
+
+
+#### usage: bacula_del_catalog_jobids [-h] [-d] [-dry]
+bacula-del-catalog-jobids.py WARNING: Use carefully! Delete only the catalog
+entries, not the associated files, that are selected in configured SQL query.
+This script uses `echo delete jobid= | bconsole` to delete the selected
+jobids. CONFIG: /etc/bacula-scripts/bacula_del_catalog_jobids_conf.py
+
+optional arguments:
+  -h, --help  show this help message and exit
+  -d          Delete the SQL selected list of jobids from catalog
+  -dry        Simulate deletion
+
+
+#### usage: bacula_del_failed_jobs [-h] [-d] [-dry]
+bacula-del-failed-jobs.py Delete all volumes that are associated to failed
+jobs. Developing notes: Issuing delete twice, because running it just once
+some entries persisted. Eventually redo tests by comparing catalog entries
+between each deletion. Job Status Code meanings: A Canceled by user E
+Terminated in error NO CONFIG NEEDED
+
+optional arguments:
+  -h, --help  show this help message and exit
+  -d          Delete all failed jobs associated volumes
+  -dry        Dry run, simulates deletion
+
+
+#### usage: bacula_del_jobs [-h] [-d] [-dry]
+Delete catalog entries and associated volumes from disk, based on configured
+settings in/etc/bacula_scripts/bacula_del_jobs_conf.py.
+
+optional arguments:
+  -h, --help  show this help message and exit
+  -d          Delete jobs and storage files
+  -dry        Simulate deletion
+
+
+#### usage: bacula_del_media_orphans [-h] [-d] [-dry]
+bacula-del-media-orphans.py Delete all catalog entries, which backup volume
+doesn't exist anymore. CONFIG: /etc/bacula-
+scripts/bacula_del_media_orphans_conf.py
+
+optional arguments:
+  -h, --help  show this help message and exit
+  -d          Delete jobs and storage files
+  -dry        Simulate deletion
+
+
+#### usage: bacula_del_purged_vols [-h] [-d] [-dry]
+bacula-del-purged-vols.py Remove volumes and catalog entries for backups that
+have been marked 'Purged' based on the deletion rules. Deletion rules: - Don't
+delete full if there are unpurged (=dependent, =unpruned) incrementals or
+diffs or less than four fulls. - Don't delete diff if there are dependent
+incrementals or less than two diffs. - Don't delete incremental if there are
+still dependent incrementals in the incremental chain. Latter should enforce
+that incremental backups within a chain are deleted all at once. This script
+will also work for remote storage daemons, provided that you setup the SSH
+alias in /root/.ssh/config with the same hostname that you defined for the
+"Address" (=hostname) in storages.conf. Why this script? We want to remove
+purged backups for disk space, scaling reason, but we don't want to delete all
+backups that have been marked as 'Purged', because if you don't do backups for
+a very long time, and have set 'AutoPrune = yes', plus your Retention is due,
+then important backups get deleted. Also if you delete a full backup, which
+has been marked 'purged', but still have incremental backups dependent on it,
+then you'll have a broken incremental backup chain. Developing notes: (1) We
+have to get the jobname and backup time from the volume file with bls, because
+purged volumes dont have any job entries in the catalog anymore. (2) Notice
+that we use the clientname and filesetname to check a backup chain for
+consistency, because the jobname doesn't distinctively display all backups of
+a backup chain. Instead bacula uses all fileset and client name pairs. (3) Not
+using paramiko in this script because we need `sudo` commands sometimes which
+we allowed with %nopasswd% for the user. User notes: (1) We dont want to have
+purged vols recycled/overwritten automatically. because it can happen that we
+dont do a backup for a very long time and then we'd overwrite purged vols that
+had old backups that would could still needed and leave us with no backups at
+all. Instead our autorm script handles when to delete purged vols. => Make
+sure to set `Recycle = No` in bacula configs. (2) After you changed Recycle to
+'No' you may still have previous volumes marked with 'Recycle = Yes'. To make
+all volumes in your database afterwards non recycable use this query in your
+db backend: `UPDATE media SET recycle=0;` (3) Use `DRY_RUN = True` to simulate
+this script. (4) If you use an external SD, make sure to setup SSH
+accordingly. IMPORTANT! Notice that this script assumes your '~/.ssh/config'
+uses the exact same FQDN as provided in the 'Address' directive of
+/etc/bacula/bacula.dir.d/storages.conf for the SSH host alias. (5) For copy
+jobs provide the unique 'mediatype' of the copy jobs storage, so that the
+script won't use the 'JobLevel' from the parsed volume. We parse with the tool
+`bls` and check if we find a hint of `bls` output in the 'PoolName' of the
+JobLevel. This implies that you have to name your volumes with the appropriate
+joblevel. That is e.g. "Full-Pool" or "my-full-pool" or "inc-copy-pool" or
+"incremental-copy-pool". This workaround is required, because bacula writes
+the wrong job level to the volume's metadata. In the catalog it's correct,
+just not in the volume's metadata, where it always claims that the joblevel is
+'I' for incremental. So our script's deletion algorithm wouldn't work,
+therefore in that case we need to know the job level to decide if a volume
+can't be deleted. (6) For remote storage daemons setup the ssh config like
+this for example: Host phpc01e.ffm01. Hostname phpc01e.ffm01. Port 22
+IdentityFile ~/.ssh/id_phpc01_ed25519 IdentitiesOnly yes User someuser
+ConnectTimeout=5 Now also make sure that you add following commands for the
+SSH user in sudoers with NOPASSWD or just SSH to root@your.host! someuser
+ALL=NOPASSWD: /usr/bin/cat /etc/bareos/bareos-sd.conf someuser ALL=NOPASSWD:
+/usr/bin/timeout 0.1 bls -jv * someuser ALL=NOPASSWD: /usr/bin/rm
+/mnt/path/to/your/offsite/storage/* CONFIG: /etc/bacula-
+scripts/bacula_del_purged_vols_conf.py
+
+optional arguments:
+  -h, --help  show this help message and exit
+  -d          Remove purged jobs from catalog and disk
+  -dry        Simulate deletion
+
+
+#### usage: bacula_del_scatter.py [-h] [-d] [-dry]
+bacula-del-jobs.py Delete redundant full media vols which are following to
+narrowly. Example: F F F I F F F D F F F F F F F F x x x x x x x x We want a
+full backup every 3 weeks, so we get a list of all consecutive Full backups
+and make sure to mark the Full backups, that are allowed to be deleted. Only
+Full backups, which have a Full following backup are allowed to be deleted.
+Then apply the even spread function and have at maximum 1 Full backup within 3
+weeks. The even spread function favors older backups. CONFIG: /etc/bacula-
+scripts/bacula_prune_scattered_conf.py
+
+optional arguments:
+  -h, --help  show this help message and exit
+  -d          Delete redundant full media volumes
+  -dry        Simulate deletion
+
+
+#### usage: bacula_find_backups_bls [-h] [-f]
+bacula_find_backups_bls.py Find the on-disk volume inside a backup directory
+by parsing the volume information with `bls` to match a client or fileset.
+CONFIG: /etc/bacula-scripts/bacula_find_backups_bls_conf.py
+
+optional arguments:
+  -h, --help  show this help message and exit
+  -f          Find disk volumes matching a client or fileset inside a backup
+              directory
+
+
+#### usage: bacula_prune_all [-h] [-p] [-dry]
+bacula-prune-all.py Prune all existing volumes. Run `bconsole prune volume=x
+yes` for all existing volumes. Latter command will only prune the volume, if
+the configured retention time is passed. NO CONFIG
+
+optional arguments:
+  -h, --help  show this help message and exit
+  -p          Prune all volumes
+  -dry        Simulate deletion
+
+
+#### usage: bacula_stats [-h] [-a] [-r] [--version]
+bacula_stats 0.1.1 - Display recent and all backups.
+
+optional arguments:
+  -h, --help    show this help message and exit
+  -a, --all     Return all backups.
+  -r, --recent  Return recent backups
+  --version     show program's version number and exit
+
+
+#### usage: bacula_offsite_backup_age_watch [-h] [-c]
+bacula-offsite-backup-age-watch.py Check when the last offsite backup was
+performed and send a warning notification mail if the backup is too old. Add a
+symlink to this script for example to cron.weekly. CONFIG: /etc/bacula-
+scripts/bacula_offsite_backup_age_watch_conf.py
+
+optional arguments:
+  -h, --help  show this help message and exit
+  -c          Check backup age
+
+
 ---
-Project started May 2016
+Project created 05/2016
+
