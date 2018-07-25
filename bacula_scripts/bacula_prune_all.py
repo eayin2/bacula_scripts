@@ -5,6 +5,8 @@
 Prune all existing volumes. Run `bconsole prune volume=x yes` for all existing volumes. Latter
 command will only prune the volume, if the configured retention time is passed.
 
+Run this before bacula_del_purged_vols to force bacula to apply prunes rules for all volumes.
+
 NO CONFIG
 """
 import argparse

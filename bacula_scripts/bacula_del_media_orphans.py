@@ -4,6 +4,10 @@
 
 Delete all catalog entries, which backup volume doesn't exist anymore.
 
+Removes catalog entries of inexistent volumes, you should run this better manually and not
+recurring in cron, because if you accidently remove a volume and want to migrate from an offsite
+backup, then the job entry would also be gone.
+
 CONFIG: /etc/bacula-scripts/bacula_del_media_orphans_conf.py 
 """
 import argparse

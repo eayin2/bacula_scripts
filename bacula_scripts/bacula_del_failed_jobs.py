@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """ bacula-del-failed-jobs.py
 
-Delete all volumes that are associated to failed jobs.
+Delete all volumes that are associated to failed jobs, to be the catalog cleaner.
 
 Developing notes:
 Issuing delete twice, because running it just once some entries persisted.
