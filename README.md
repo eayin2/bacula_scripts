@@ -213,7 +213,7 @@ optional arguments:
   -c          Check backup age
 
 
-#### Example for the offsite solution with the encfs script using dropbox:
+## Example for the offsite solution with the encfs script using dropbox:
 - bacula_encfs_backup.py (requires you to setup a dropbox and encfs dir within the dropbox on the system where the
   director is, then the script automatically mounts and umounts before and after backup).
 - Example job resource:
