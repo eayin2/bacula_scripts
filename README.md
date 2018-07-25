@@ -13,16 +13,6 @@ bacula-/bareos-tools on your distro.
 See the example configs in etc/bacula_scripts and modify for your needs. general_conf.py is
 used by multiple scripts.
 
-#### Issues:
-If bacula_offsite_udev doesn't work, try to initiate it manually in foreground with `bacula_offsite_udev add sdXY` (as
-root), so that you can see the debug messages.
-
-Also check in bconsole (on your bacula director) your offsite storage devices status. Moreover you can try to cancel all
-copy backups and manually start each to see the bconsole messages for hints.
-
-I run latter steps to find out that my offsite disk was full and thus backups failed.
-
-
 
 ## This package comes with following scripts:
 
