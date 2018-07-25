@@ -1,4 +1,4 @@
-# bacula_scripts
+## bacula_scripts
 
 #### Description
 This package comes with various bacula and bareos compatible scripts. Scripts were mainly tested
@@ -32,7 +32,7 @@ I run latter steps to find out that my offsite disk was full and thus backups fa
 
 
 
-# This package comes with following scripts:
+## This package comes with following scripts:
 
 #### usage: bacula_db_backup [-h] [-d D] [-c C] [-p P] -t
                         {postgresql,mongodb,mysql}
