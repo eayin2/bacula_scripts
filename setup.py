@@ -3,7 +3,7 @@ from setuptools import find_packages
 
 setup(
     name="bacula_scripts",
-    version="0.7.2",
+    version="0.8.2",
     author="eayin2",
     author_email="eayin2@gmail.com",
     packages=find_packages(),
@@ -12,6 +12,7 @@ setup(
     install_requires=["gymail", "helputils", "psycopg2-binary", "pexpect", "lark-parser"],
     entry_points={
         "console_scripts": [
+            "bacula_add_client = bacula_scripts.bacula_add_client:main",
             "bacula_del_jobs = bacula_scripts.bacula_del_jobs:main",
             "bacula_db_backup = bacula_scripts.bacula_db_backup:main",
             "bacula_del_media_orphans = bacula_scripts.bacula_del_media_orphans:main",

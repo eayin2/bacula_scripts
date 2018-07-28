@@ -141,10 +141,7 @@ AND s.storageid=m.storageid
 
 
 def main():
-    p = argparse.ArgumentParser(description="""
-Delete catalog entries and associated volumes from disk, based on configured settings in\
-/etc/bacula_scripts/bacula_del_jobs_conf.py.
-""")
+    p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("-d", action="store_true", help="Delete jobs and storage files")
     p.add_argument("-dry", action="store_true", help="Simulate deletion")
     args = p.parse_args()

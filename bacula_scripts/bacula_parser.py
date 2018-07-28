@@ -9,6 +9,8 @@ from lark import Transformer
 from collections import defaultdict
 from subprocess import Popen, PIPE
 
+from helputils.core import format_exception
+
 
 def preprocess_config(daemon, hn=False):
     """Parse bareos-dir, bareos-sd or bareos-fd config and return as dictionary"""
@@ -16,7 +18,16 @@ def preprocess_config(daemon, hn=False):
     if hn:
         cmd = ["ssh", "-tt", hn] + cmd
     p1 = Popen(cmd, stdout=PIPE)
-    text2 = p1.communicate()[0].decode("UTF-8")
+    try:
+        text2 = p1.communicate()[0].decode("UTF-8")
+    except Exception as e:
+        print(format_exception(e))
+        print("""\n---------\n
+Failed to decode config. Try `bareos-dir -xc`, `bareos-fd -xc`, `bareos-sd -xc`
+manually. There could be an error in your bareos config.
+---------\n
+""")
+        return None
     # Remove spaces
     text2 = "{".join(list(filter(None, [x.strip(" ") for x in text2.split("{")])))
     text2 = "}".join(list(filter(None, [x.strip(" ") for x in text2.split("}")])))
@@ -82,14 +93,11 @@ def preprocess_config(daemon, hn=False):
 class MyTransformer(Transformer):
 
     def string(self, items):
-        print("string: %s" % items)
         return "".join(items)
 
     def resource(self, items):
-        print("resource: %s" % items)
         resource_type = items[0].strip('"')
         directives = items[1:]
-        print(directives)
         for directive in directives:
             if not directive:
                 continue            
@@ -111,24 +119,18 @@ class MyTransformer(Transformer):
     def resources(self, items):
         _dict = defaultdict(list)
         _dict = defaultdict(lambda: defaultdict(defaultdict))
-        print("resources: %s" % items)
         for d in items:
-            print(d)
             for k1, v1 in d.items():
                 # k1 resource_type e.g. Clients
                 for k2, v2 in v1.items():
-                    print(k2)
-                    print(k2)
                     name = d[k1][k2]["Name"]
                     _dict[k1][k2] = v2
         return _dict
  
     def directive(self, items):
-        print("directive: %s" % items)
         items2 = list()
         for x in items:
             items2.append(x.strip('"'))
-        print("directive: %s" % type(items))
         return {items2[0]: items2[1]}
 
 
@@ -149,6 +151,8 @@ def bacula_parse(daemon="bareos-dir", hn=False):
         %import common.WS
     """, start='value')
     config = preprocess_config(daemon, hn)
+    if not config:
+        return None
     tree = parser.parse(config)
     trans = MyTransformer().transform(tree)
     # pp = pprint.PrettyPrinter(indent=4)
