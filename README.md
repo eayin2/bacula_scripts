@@ -16,10 +16,8 @@ used by multiple scripts.
 
 #### Usage
 
+
 ##### usage: bacula_stats [-h] [-a] [-r] [--version]
-
-bacula_stats 0.1.1 - Display recent and all backups.
-
 optional arguments:
   -h, --help    show this help message and exit
   -a, --all     Return all backups.
@@ -27,10 +25,8 @@ optional arguments:
   --version     show program's version number and exit
 
 
+
 ##### usage: bacula_del_jobs [-h] [-d] [-dry]
-
- bacula-del-jobs.py
-
 WARNING! Use with caution.
 
 Delete all catalog entries that are associated to the given storage_name and their volume file
@@ -55,10 +51,8 @@ optional arguments:
   -dry        Simulate deletion
 
 
+
 ##### usage: bacula_del_media_orphans [-h] [-d] [-dry]
-
- bacula-del-media-orphans.py
-
 Delete all catalog entries, which backup volume doesn't exist anymore.
 
 Removes catalog entries of inexistent volumes, you should run this better manually and not
@@ -73,10 +67,8 @@ optional arguments:
   -dry        Simulate deletion
 
 
+
 ##### usage: bacula_offsite_backup_age_watch [-h] [-c]
-
- bacula-offsite-backup-age-watch.py
-
 Check when the last offsite backup was performed and send a warning notification mail if the
 backup is too old. Add a symlink to this script for example to cron.weekly.
 
@@ -87,10 +79,8 @@ optional arguments:
   -c          Check backup age
 
 
+
 ##### usage: bacula_del_failed_jobs [-h] [-d] [-dry]
-
- bacula-del-failed-jobs.py
-
 Delete all volumes that are associated to failed jobs, to be the catalog cleaner.
 
 Developing notes:
@@ -109,17 +99,61 @@ optional arguments:
   -dry        Dry run, simulates deletion
 
 
+
 ##### usage: bacula_add_client [-h] [-r] [-fd_fqdn FD_FQDN]
                          [-os_type {linux,windows}]
                          [-create_client_job CREATE_CLIENT_JOB]
                          [-create_client_copy_job CREATE_CLIENT_COPY_JOB]
                          [-dry_run]
+Add a client with storage device to the bareos configs
+
+*** Warning ***
+1. Run this script only on the host of the bareos-director daemon, because it needs
+   to edit bareos-director config files.
+2. Before adding a client with this script, make sure you have configured
+   Director resource in `bareos-sd.d/director/bareos-dir.conf` and
+   Storage resource in `bareos-sd.d/storage/bareos-sd.conf`
+   on your sd-daemon priorly, because you have to type in the sd daemon password
+   from `bareos-sd.d/director/bareos-dir.conf` and the FQDN of the sd-daemon to
+   this script's settings.
+3. The script configures on the client's fd-daemon the "Client resource" inside
+   bareos-fd.d/client/myself.conf with "client backup encryption" and creates
+   the key and cert needed for it. If you don't want to use client backup encryption
+   you'd have to alter the script to your needs, that is remove ssl key creation
+   and the config string.
+4. Create the SSL master key and cert before running this script
+   That is:
+   + mkdir -p /etc/bareos/certs
+   + Create the SSL key
+     `openssl genrsa -aes256 -out /etc/bareos/certs/master.key -passout stdin 4096`
+   + Create the public cert
+     `openssl req -new -key master.key -x509 -out /etc/bareos/certs/master.cert`
+   - Don't merge key and cert. Only needed upon restore and then the key needs the
+     passphrase removed
+   + Consider storing the master key on a different secure location than on the
+     bareos-dir.
+5. Following files can be written to:
+   bareos-dir.d/client/bareos-fd.conf
+   bareos-dir.d/storage/File.conf
+   bareos-sd.d/device/FileStorage.conf
+6. Make sure all passwords you enter to bareos resources are quoted
+7. This script does not configure storages. Do that manually
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -r                    Add client
+  -fd_fqdn FD_FQDN      FQDN of the filedaemon you want to add to the director
+  -os_type {linux,windows}
+                        Specify your client's OS. Supported: linux or windows
+  -create_client_job CREATE_CLIENT_JOB
+                        Create a job for the client?
+  -create_client_copy_job CREATE_CLIENT_COPY_JOB
+                        Create a copy job for the client?
+  -dry_run              Simulate deletion
+
 
 
 ##### usage: host_uptime_server [-h] [-r]
-
- host_uptime_server.py
-
 Listen on a TCP socket for a host's uptime echo, packed into a json dumps. The json dumps
 contains optionally a 'last_backup' json key with the seconds of the last performed backup
 as its value.
@@ -138,10 +172,8 @@ optional arguments:
   -r          Run host_uptime server
 
 
+
 ##### usage: host_uptime_client [-h] [-r]
-
- host_uptime_client.py
-
 Connect to the host_uptime server and send a json dictionary to the echo server containing this
 hosts FQDN and the date of the latest performed bacula backup.
 
@@ -152,10 +184,8 @@ optional arguments:
   -r          Run host_uptime client
 
 
+
 ##### usage: disk_full_notifier [-h] [-d]
-
- disk-full-notifier.py
-
 Scan all devices in /dev and use the given default_limit, that is % of the used disk space, to
 determine whether a disk the disk limit is reached and a warning mail should be send out.
 You can use the list of custom_disk tuples (diskname, limit-number) to define individual limits
