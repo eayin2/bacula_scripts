@@ -14,9 +14,9 @@ See the example configs in etc/bacula_scripts and modify for your needs. general
 used by multiple scripts.
 
 
-## This package comes with following scripts:
+#### List of scripts
 
-#### usage: bacula_db_backup [-h] [-d D] [-c C] [-p P] -t
+##### usage: bacula_db_backup [-h] [-d D] [-c C] [-p P] -t
                         {postgresql,mongodb,mysql}
 
 optional arguments:
@@ -28,7 +28,7 @@ optional arguments:
                         Choose the db type
 
 
-#### usage: bacula_del_catalog_jobids [-h] [-d] [-dry]
+##### usage: bacula_del_catalog_jobids [-h] [-d] [-dry]
 bacula-del-catalog-jobids.py WARNING: Use carefully! Delete only the catalog
 entries, not the associated files, that are selected in configured SQL query.
 This script uses `echo delete jobid= | bconsole` to delete the selected
@@ -40,7 +40,7 @@ optional arguments:
   -dry        Simulate deletion
 
 
-#### usage: bacula_del_failed_jobs [-h] [-d] [-dry]
+##### usage: bacula_del_failed_jobs [-h] [-d] [-dry]
 bacula-del-failed-jobs.py Delete all volumes that are associated to failed
 jobs. Developing notes: Issuing delete twice, because running it just once
 some entries persisted. Eventually redo tests by comparing catalog entries
@@ -53,7 +53,7 @@ optional arguments:
   -dry        Dry run, simulates deletion
 
 
-#### usage: bacula_del_jobs [-h] [-d] [-dry]
+##### usage: bacula_del_jobs [-h] [-d] [-dry]
 Delete catalog entries and associated volumes from disk, based on configured
 settings in/etc/bacula_scripts/bacula_del_jobs_conf.py.
 
@@ -63,7 +63,7 @@ optional arguments:
   -dry        Simulate deletion
 
 
-#### usage: bacula_del_media_orphans [-h] [-d] [-dry]
+##### usage: bacula_del_media_orphans [-h] [-d] [-dry]
 bacula-del-media-orphans.py Delete all catalog entries, which backup volume
 doesn't exist anymore. CONFIG: /etc/bacula-
 scripts/bacula_del_media_orphans_conf.py
@@ -74,7 +74,7 @@ optional arguments:
   -dry        Simulate deletion
 
 
-#### usage: bacula_del_purged_vols [-h] [-d] [-dry]
+##### usage: bacula_del_purged_vols [-h] [-d] [-dry]
 bacula-del-purged-vols.py Remove volumes and catalog entries for backups that
 have been marked 'Purged' based on the deletion rules. Deletion rules: - Don't
 delete full if there are unpurged (=dependent, =unpruned) incrementals or
@@ -136,7 +136,7 @@ optional arguments:
   -dry        Simulate deletion
 
 
-#### usage: bacula_del_scatter.py [-h] [-d] [-dry]
+##### usage: bacula_del_scatter.py [-h] [-d] [-dry]
 bacula-del-jobs.py Delete redundant full media vols which are following to
 narrowly. Example: F F F I F F F D F F F F F F F F x x x x x x x x We want a
 full backup every 3 weeks, so we get a list of all consecutive Full backups
@@ -152,7 +152,7 @@ optional arguments:
   -dry        Simulate deletion
 
 
-#### usage: bacula_find_backups_bls [-h] [-f]
+##### usage: bacula_find_backups_bls [-h] [-f]
 bacula_find_backups_bls.py Find the on-disk volume inside a backup directory
 by parsing the volume information with `bls` to match a client or fileset.
 CONFIG: /etc/bacula-scripts/bacula_find_backups_bls_conf.py
@@ -163,7 +163,7 @@ optional arguments:
               directory
 
 
-#### usage: bacula_prune_all [-h] [-p] [-dry]
+##### usage: bacula_prune_all [-h] [-p] [-dry]
 bacula-prune-all.py Prune all existing volumes. Run `bconsole prune volume=x
 yes` for all existing volumes. Latter command will only prune the volume, if
 the configured retention time is passed. NO CONFIG
@@ -174,7 +174,7 @@ optional arguments:
   -dry        Simulate deletion
 
 
-#### usage: bacula_stats [-h] [-a] [-r] [--version]
+##### usage: bacula_stats [-h] [-a] [-r] [--version]
 bacula_stats 0.1.1 - Display recent and all backups.
 
 optional arguments:
@@ -184,7 +184,7 @@ optional arguments:
   --version     show program's version number and exit
 
 
-#### usage: bacula_offsite_backup_age_watch [-h] [-c]
+##### usage: bacula_offsite_backup_age_watch [-h] [-c]
 bacula-offsite-backup-age-watch.py Check when the last offsite backup was
 performed and send a warning notification mail if the backup is too old. Add a
 symlink to this script for example to cron.weekly. CONFIG: /etc/bacula-
@@ -195,7 +195,7 @@ optional arguments:
   -c          Check backup age
 
 
-#### usage: bacula_add_client [-h] [-r] [-fd_fqdn FD_FQDN]
+##### usage: bacula_add_client [-h] [-r] [-fd_fqdn FD_FQDN]
                          [-os_type {linux,windows}]
                          [-create_client_job CREATE_CLIENT_JOB]
                          [-create_client_copy_job CREATE_CLIENT_COPY_JOB]
