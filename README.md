@@ -195,7 +195,53 @@ optional arguments:
   -c          Check backup age
 
 
-## Example for the offsite solution with the encfs script using dropbox:
+#### usage: bacula_add_client [-h] [-r] [-fd_fqdn FD_FQDN]
+                         [-os_type {linux,windows}]
+                         [-create_client_job CREATE_CLIENT_JOB]
+                         [-create_client_copy_job CREATE_CLIENT_COPY_JOB]
+                         [-dry_run]
+
+bacula_add_client - Add a client with storage device to the bareos configs ***
+Warning *** 1. Run this script only on the host of the bareos-director daemon,
+because it needs to edit bareos-director config files. 2. Before adding a
+client with this script, make sure you have configured Director resource in
+`bareos-sd.d/director/bareos-dir.conf` and Storage resource in `bareos-
+sd.d/storage/bareos-sd.conf` on your sd-daemon priorly, because you have to
+type in the sd daemon password from `bareos-sd.d/director/bareos-dir.conf` and
+the FQDN of the sd-daemon to this script's settings. 3. The script configures
+on the client's fd-daemon the "Client resource" inside bareos-
+fd.d/client/myself.conf with "client backup encryption" and creates the key
+and cert needed for it. If you don't want to use client backup encryption
+you'd have to alter the script to your needs, that is remove ssl key creation
+and the config string. 4. Create the SSL master key and cert before running
+this script That is: + mkdir -p /etc/bareos/certs + Create the SSL key
+`openssl genrsa -aes256 -out /etc/bareos/certs/master.key -passout stdin 4096`
++ Create the public cert `openssl req -new -key master.key -x509 -out
+/etc/bareos/certs/master.cert` - Don't merge key and cert. Only needed upon
+restore and then the key needs the passphrase removed + Consider storing the
+master key on a different secure location than on the bareos-dir. 5. Following
+files can be written to: bareos-dir.d/client/bareos-fd.conf bareos-
+dir.d/storage/File.conf bareos-sd.d/device/FileStorage.conf 6. Make sure all
+passwords you enter to bareos resources are quoted 7. This script does not
+configure storages. Do that manually
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -r                    Add client
+  -fd_fqdn FD_FQDN      FQDN of the filedaemon you want to add to the director
+  -os_type {linux,windows}
+                        Specify your client's OS. Supported: linux or windows
+  -create_client_job CREATE_CLIENT_JOB
+                        Create a job for the client?
+  -create_client_copy_job CREATE_CLIENT_COPY_JOB
+                        Create a copy job for the client?
+  -dry_run              Simulate deletion
+
+phserver01:root /usr/local/lib/python3.5/
+
+
+---
+#### Example for the offsite solution with the encfs script using dropbox:
 - bacula_encfs_backup.py (requires you to setup a dropbox and encfs dir within the dropbox on the system where the
   director is, then the script automatically mounts and umounts before and after backup).
 - Example job resource:
@@ -259,5 +305,4 @@ Job {
 ```
 
 ---
-Project created 05/2016
-
+Project initially created in 05/2016
