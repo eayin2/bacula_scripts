@@ -14,7 +14,7 @@ See the example configs in etc/bacula_scripts and modify for your needs. general
 used by multiple scripts.
 
 
-#### List of scripts
+#### Usage of the scripts
 
 ##### usage: bacula_db_backup [-h] [-d D] [-c C] [-p P] -t
                         {postgresql,mongodb,mysql}
