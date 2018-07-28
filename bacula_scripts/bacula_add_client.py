@@ -40,6 +40,7 @@ import re
 import shutil
 import subprocess
 import sys
+from argparse import RawDescriptionHelpFormatter
 
 sys.path.append("/etc/bacula-scripts")
 import bacula_add_client_conf as conf_mod
@@ -299,7 +300,7 @@ Messages {
 
 
 def main():
-    p = argparse.ArgumentParser(description=__doc__)
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=RawDescriptionHelpFormatter)
     p.add_argument("-r", action="store_true", help="Add client")
     p.add_argument("-fd_fqdn", help="FQDN of the filedaemon you want to add to the director")
     p.add_argument(

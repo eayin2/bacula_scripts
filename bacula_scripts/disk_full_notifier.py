@@ -13,10 +13,11 @@ import argparse
 import os
 import subprocess
 import sys
+from argparse import RawDescriptionHelpFormatter
 
 from gymail.core import send_mail
 sys.path.append("/etc/bacula-scripts")
-import disk_full_notifier_conf as mod_conf
+import disk_full_notifier_conf as conf_mod
 
 
 def CONF(attr):
@@ -58,7 +59,7 @@ def run():
 
 
 def main():
-    p = argparse.ArgumentParser(description=__doc__)
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=RawDescriptionHelpFormatter)
     p.add_argument(
         "-d",
         action="store_true",

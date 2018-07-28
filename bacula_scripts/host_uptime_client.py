@@ -15,6 +15,7 @@ import os
 import psycopg2
 import re
 import sys
+from argparse import RawDescriptionHelpFormatter
 from subprocess import Popen, PIPE
 
 from helputils.core import format_exception, liget, log, systemd_services_up
@@ -106,7 +107,7 @@ def run():
 
 
 def main():
-    p = argparse.ArgumentParser(description=__doc__)
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=RawDescriptionHelpFormatter)
     p.add_argument("-r", action="store_true", help="Run host_uptime client")
     args = p.parse_args()
     if args.r:

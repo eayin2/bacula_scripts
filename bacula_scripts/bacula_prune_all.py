@@ -14,6 +14,7 @@ import os
 import psycopg2
 import re
 import sys
+from argparse import RawDescriptionHelpFormatter
 from subprocess import Popen, PIPE
 
 from helputils.core import format_exception, systemd_services_up
@@ -51,7 +52,7 @@ def run(dry_run=False):
             log.debug("out: %s, err: %s" % (out, err))
 
 def main():
-    p = argparse.ArgumentParser(description=__doc__)
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=RawDescriptionHelpFormatter)
     p.add_argument("-p", action="store_true", help="Prune all volumes")
     p.add_argument("-dry", action="store_true", help="Simulate deletion")
     args = p.parse_args()

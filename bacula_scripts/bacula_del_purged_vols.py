@@ -79,6 +79,7 @@ import sys
 import time
 import traceback
 import socket
+from argparse import RawDescriptionHelpFormatter
 from datetime import datetime
 from subprocess import Popen, PIPE
 
@@ -368,7 +369,7 @@ def run(dry_run=False):
 
 
 def main():
-    p = argparse.ArgumentParser(description=__doc__)
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=RawDescriptionHelpFormatter)
     p.add_argument("-d", action="store_true", help="Remove purged jobs from catalog and disk")
     p.add_argument("-dry", action="store_true", help="Simulate deletion")
     args = p.parse_args()

@@ -11,6 +11,7 @@ import os
 import sys
 import time
 import traceback
+from argparse import RawDescriptionHelpFormatter
 from subprocess import Popen, PIPE
 
 import psycopg2
@@ -68,7 +69,7 @@ def run():
 
 
 def main():
-    p = argparse.ArgumentParser(description=__doc__)
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=RawDescriptionHelpFormatter)
     p.add_argument("-c", action="store_true", help="Check backup age")
     args = p.parse_args()
     if args.c:

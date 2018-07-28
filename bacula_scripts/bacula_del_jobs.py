@@ -26,6 +26,7 @@ import re
 import sys
 import time
 import traceback
+from argparse import RawDescriptionHelpFormatter
 from datetime import datetime
 from subprocess import Popen, PIPE
 
@@ -141,7 +142,7 @@ AND s.storageid=m.storageid
 
 
 def main():
-    p = argparse.ArgumentParser(description=__doc__)
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=RawDescriptionHelpFormatter)
     p.add_argument("-d", action="store_true", help="Delete jobs and storage files")
     p.add_argument("-dry", action="store_true", help="Simulate deletion")
     args = p.parse_args()

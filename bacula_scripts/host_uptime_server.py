@@ -18,6 +18,7 @@ import asyncio
 import json
 import sys
 import time
+from argparse import RawDescriptionHelpFormatter
 from collections import defaultdict
 
 from gymail.core import send_mail
@@ -106,7 +107,7 @@ The backup job %s is older than %s days for the director host %s.\
 
 
 def main():
-    p = argparse.ArgumentParser(description=__doc__)
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=RawDescriptionHelpFormatter)
     p.add_argument("-r", action="store_true", help="Run host_uptime server")
     args = p.parse_args()
     if args.r:

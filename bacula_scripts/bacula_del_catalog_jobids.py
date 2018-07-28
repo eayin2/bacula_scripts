@@ -18,6 +18,7 @@ import os
 import sys
 import traceback
 import time
+from argparse import RawDescriptionHelpFormatter
 from datetime import datetime
 from subprocess import Popen, PIPE
 
@@ -65,7 +66,7 @@ def run():
 
 
 def main():
-    p = argparse.ArgumentParser(description=__doc__)
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=RawDescriptionHelpFormatter)
     p.add_argument("-d", action="store_true", help="Delete the SQL selected list of jobids from catalog")
     p.add_argument("-dry", action="store_true", help="Simulate deletion")
     args = p.parse_args()

@@ -18,15 +18,16 @@ import datetime as dt
 import glob
 import os
 import sys
-
+from argparse import RawDescriptionHelpFormatter
 from subprocess import Popen, PIPE
+
 from helputils.core import mkdir_p
 from helputils.defaultlog import log
 
 os.environ["PGUSER"] = "postgres"
 
 
-def createbackup(dbname, dbtype, dbbackupdir=dbbackupdir):
+def createbackup(dbname, dbtype, dbbackupdir="/tmp/dbbackupdir/"):
     """Creates backup"""
     fn = "%s_%s_%s.db" % (dbtype, dbname, dt.datetime.now().strftime("%d.%m.%y"))
     log.debug(fn)
@@ -45,7 +46,7 @@ def createbackup(dbname, dbtype, dbbackupdir=dbbackupdir):
     log.debug(o)
 
 
-def delbackup(dbname, dbtype, dbbackupdir=dbbackupdir):
+def delbackup(dbname, dbtype, dbbackupdir="/tmp/dbbackupdir"):
     """Delete backups"""
     fn = os.path.join(dbbackupdir, "%s_%s" % (dbtype, dbname))
     bd = glob.glob("%s_*" % fn)
@@ -54,19 +55,21 @@ def delbackup(dbname, dbtype, dbbackupdir=dbbackupdir):
         os.remove(bd[0])
 
 
-# Checking if services are up
-services = ['bareos-dir', 'postgresql']
-for x in services:
-    p = Popen(['systemctl', 'is-active', x], stdout=PIPE, stderr=PIPE)
-    out, err = p.communicate()
-    out = out.decode("utf-8").strip()
-    if "failed" == out:
-        print("Exiting, because dependent services are down.")
-        sys.exit()
+def check_services():
+    # Checking if services are up
+    services = ['bareos-dir', 'postgresql']
+    for x in services:
+        p = Popen(['systemctl', 'is-active', x], stdout=PIPE, stderr=PIPE)
+        out, err = p.communicate()
+        out = out.decode("utf-8").strip()
+        if "failed" == out:
+            print("Exiting, because dependent services are down.")
+            sys.exit()
+
 
 # Argparse
 def main():
-    p = argparse.ArgumentParser(description=__doc__)
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=RawDescriptionHelpFormatter)
     p.add_argument("-d", nargs=1, help="Delete a db dump backup.")
     p.add_argument("-c", nargs=1, help="Create a db dump backup.")
     p.add_argument(
@@ -80,6 +83,8 @@ def main():
     dbbackupdir = args.dir[0]
     mkdir_p(dbbackupdir)
     if args.c:
+        check_services()
         createbackup(args.c[0], args.t, dbbackupdir=dbbackupdir)
     if args.d:
+        check_services()
         delbackup(args.d[0], args.t, dbbackupdir=dbbackupdir)

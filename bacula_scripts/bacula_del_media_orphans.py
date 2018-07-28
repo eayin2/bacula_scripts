@@ -15,6 +15,7 @@ import os
 import re
 import sys
 import traceback
+from argparse import RawDescriptionHelpFormatter
 from datetime import datetime
 from subprocess import Popen, PIPE
 
@@ -41,7 +42,6 @@ def run(dry_run=False):
         media_storage = cur.fetchall()  # e.g. [('Incremental-ST-0126', 's8tb01'), ('Full-ST-0031', 's8tb01'), ..]
     except Exception as e:
         print(format_exception(e))
-    ##
     storages_conf_parsed = bacula_parse("bareos-dir")
     for volname, storagename in media_storage:
         for storage_name, storage_value in storages_conf_parsed["Storage"].items():
@@ -74,7 +74,7 @@ def run(dry_run=False):
 
 
 def main():
-    p = argparse.ArgumentParser(description=__doc__)
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=RawDescriptionHelpFormatter)
     p.add_argument("-d", action="store_true", help="Delete jobs and storage files")
     p.add_argument("-dry", action="store_true", help="Simulate deletion")
     args = p.parse_args()
