@@ -1,1 +1,0 @@
-KERNEL=="sd?1", ATTRS{serial}=="8404EFFFFFFF", SYMLINK+="8tb01", ACTION=="add", RUN+="bacula_offsite_udev add %k"

@@ -34,13 +34,18 @@
 7. This script does not configure storages. Do that manually
 """
 import argparse
+import io
 import os
 import pathlib
 import re
+import requests
 import shutil
+import socket
 import subprocess
 import sys
+import zipfile
 from argparse import RawDescriptionHelpFormatter
+from subprocess import Popen, PIPE
 
 sys.path.append("/etc/bacula-scripts")
 import bacula_add_client_conf as conf_mod
@@ -60,6 +65,15 @@ class AddClient():
     def __init__(self):
         self.client_exists = False
 
+    def ask(self, text):
+        while True:
+            answer = input("%s Enter (y/N): " % text).lower()
+            if answer == "" or answer in ("n", "no"):
+                return False
+            elif answer in ("y", "yes"):
+                return True
+            print("Type yes or no")
+
     def user_input(self):
         if not self.fd_fqdn:
             self.fd_fqdn = input("Enter the client's FQDN you want to add to bareos config: ")
@@ -70,23 +84,21 @@ class AddClient():
                     break
                 print("Only 'linux' and 'windows' accepted as choices.")
         if not self.create_client_job:
-            create_client_job = input("Do you want to create a job for this client? Enter (y/N): ")
-            if create_client_job == "" or create_client_job.lower() in ("n", "no"):
-                self.create_client_job = False
-            elif create_client_job.lower() in ("y", "yes"):
-                self.create_client_job = True
+            self.create_client_job = self.ask("Do you want to create a job for this client?")
         if not self.create_client_copy_job:
-            create_client_copy_job = input("Do you want to create a *copy* job for this client? Enter (y/N): ")
-            if create_client_copy_job == "" or create_client_copy_job.lower() in ("n", "no"):
-                self.create_client_copy_job = False
-            elif create_client_copy_job.lower() in ("y", "yes"):
-                self.create_client_copy_job = True
-
+            self.create_client_copy_job = self.ask(
+                "Do you want to create a *copy* job for this client?"
+            )
+        if not self.create_bconsole:
+            self.create_bconsole = self.ask(
+                "Do you want to be able to restore the client's backups from the client itself?"
+            )
+            
     def write_client_resource(self):
         """Add client to resource. Return None if client exists in the config.
         # Create configuration files in bareos.dir.d/ on bareos-director host
         """
-        client_conf = self.dir_conf.get('Client')
+        client_conf = self.dir_conf.get('Client', None)
         if client_conf:
             if client_conf.get("%s-fd" % self.fd_fqdn, None):
                 print("Client exists already")
@@ -105,7 +117,7 @@ Client {{
         return True
 
     def write_job(self):
-        job_conf = self.dir_conf.get('Job')
+        job_conf = self.dir_conf.get('Job', None)
         job_name = "%s-%s-%s" % (CONF('ADD_JOB_JOBDEFS'), CONF('ADD_JOB_FILESET'), self.fd_fqdn)
         if job_conf:
             if job_conf.get(job_name, None):
@@ -122,7 +134,7 @@ Job {
   Storage = %s
 }""" % (
     job_name,
-    self.fd_fqdn, 
+    self.fd_fqdn,
     CONF('ADD_JOB_FILESET'),
     CONF('ADD_JOB_JOBDEFS'),
     CONF('ADD_JOB_STORAGE')
@@ -134,7 +146,7 @@ Written following configuration files:\n%s\n\n..Done
     )
 
     def write_copy_job(self):
-        job_conf = self.dir_conf.get('Job')
+        job_conf = self.dir_conf.get('Job', None)
         job_name = "%s-%s-%s" % (CONF('ADD_JOB_JOBDEFS'), CONF('ADD_JOB_FILESET'), self.fd_fqdn)
         copy_job_name = "copy-%s-%s-%s" % (CONF('ADD_COPY_JOB_JOBDEFS'), CONF('ADD_JOB_FILESET'), self.fd_fqdn)
         if job_conf:
@@ -192,9 +204,12 @@ Written following configuration files:\n%s\n\n..Done
     )
 
     def create_filedaemon_files(self):
-        """Create filedaemon config and create client encryption keys"""
+        """
+        Create filedaemon config and
+        create client encryption keys
+        """
         # Create the client directory and generates its keys
-        self.fd_data_dir = os.path.join(str(pathlib.Path.home()), "bareos-clients", self.fd_fqdn)
+        #self.fd_data_dir = os.path.join(str(pathlib.Path.home()), "bareos-clients", self.fd_fqdn)
         fd_certs_dir = os.path.join(self.fd_data_dir, "certs")
         fd_ssl_key = os.path.join(fd_certs_dir, "%s-fd.key" % self.fd_fqdn)
         fd_ssl_cert = os.path.join(fd_certs_dir, "%s-fd.cert" % self.fd_fqdn)
@@ -245,6 +260,7 @@ Client {
   PKI Master Key = "%s"
   PKI Cipher     = aes256
 }""" % (self.fd_fqdn, keypair_path, masterkey_path))
+
         # Director resource in bareos-fd.d/director/bareos-dir.conf defines fd password that the
         # director needs to connect to the fd.
         with open(fd_bareos_dir_conf, "w", encoding='utf8') as f:
@@ -266,6 +282,90 @@ Messages {
         # Create storage device dir for client and chown to bareos
         subprocess.call(("install -d -m 0755 -o bareos -g bareos %s" % os.path.join(CONF('STORE_CLIENT_FILES'), self.fd_fqdn)).split())
 
+    def prepend_line(self, old_fn, new_fn, string):
+        with open(old_fn,'r') as f:
+            with open(new_fn,'w') as f2:
+                f2.write(string)
+                f2.write(f.read())
+
+    def create_windows_bat(self, samba_share="bareos"):
+        """ Prepend to the windows' bareos cmd script the client settings """
+        # Use DIR_IP, because windows asks for auth if you use the DIR_FQDN.
+        # Don't resolve the IP from the fqdn, because the director might not be connected
+        # to the DNS server.
+        dir_ip = '$SERVER_IP="%s"' % CONF('DIR_IP')
+        fd_fqdn = '$CLIENT_FQDN="%s"' % self.fd_fqdn
+        samba_var = '$SMB_SHARE_NAME="%s"' % samba_share
+        string = "%s\n%s\n%s\n" % (dir_ip, fd_fqdn, samba_var)
+        ps1_fn = os.path.join(self.fd_data_dir, "bareos-installer.ps1")
+        bat_fn = os.path.join(self.fd_data_dir, "bareos-installer.bat")
+        mod_path = os.path.dirname(__file__)
+        template = os.path.join(mod_path, "bareos-installer-template.ps1")
+        # Copy the bat to start the ps1 script to the client director too:
+        shutil.copy(os.path.join(mod_path, "bareos-installer.bat"), bat_fn)
+        self.prepend_line(template, ps1_fn, string)
+
+    def create_bconsole_conf(self):
+        """ Create fd's bconsole.conf and the director's Console resource."""
+        console_name = "%s-console" % self.fd_fqdn
+        _console_conf = self.dir_conf.get('Console', None)
+        if _console_conf:
+            if _console_conf.get(console_name, None):
+                print("Console resource %s exists already" % console_name)
+                return None
+        job_name = "%s-%s-%s" % (CONF('ADD_JOB_JOBDEFS'), CONF('ADD_JOB_FILESET'), self.fd_fqdn)
+        copy_job_name = "copy-%s-%s-%s" % (CONF('ADD_COPY_JOB_JOBDEFS'), CONF('ADD_JOB_FILESET'), self.fd_fqdn)
+        console_resource_password = self.generate_password()
+        bconsole_conf = os.path.join(self.fd_data_dir, "bconsole.conf")
+
+        # Create fd's bconsole.conf
+        with open(bconsole_conf, "w", encoding='utf8') as f:
+            f.write("""
+Director {{
+  Name = {0}-dir
+  DIRport = 9101
+  Address = {0}
+  # Add a fake Password
+  Password = "XXXX"
+  Description = "Bareos Console credentials for local Director"
+}}
+
+Console {{
+   Name = {1}-console
+   Password = "{2}"
+}}
+""".format(
+    CONF('DIR_FQDN'),
+    self.fd_fqdn,
+    console_resource_password
+    )
+)
+        # Create director's Console resource
+        with open(CONF('CONSOLE_DIR_CONF'), "a", encoding='utf8') as f:
+            f.write("""
+Console {{
+  Name = {0}-console
+  Description = "Restricted console."
+  Password = "{1}"
+  CommandACL = status, .status, restore, messages
+  ClientACL = {0}-fd
+  JobACL = {2}, {3}, RestoreFiles
+  Schedule ACL = *all*
+  Catalog ACL = *all*
+  Pool ACL = *all*
+  Storage ACL = *all*
+  FileSet ACL = *all*
+  Where ACL = *all*
+  Plugin Options ACL = *all*
+}}
+""".format(
+    self.fd_fqdn,
+    console_resource_password,
+    job_name,
+    copy_job_name
+    )
+)
+
     def generate_password(self):
         # Generating a client password
         process = subprocess.Popen("openssl rand -base64 33".split(), stdout=subprocess.PIPE)
@@ -273,18 +373,72 @@ Messages {
         fd_pw = re.escape(out.split()[0].decode("UTF-8"))
         return fd_pw
 
-    def run(self, dry_run=None, fd_fqdn=None, os_type=None, create_client_job=None, create_client_copy_job=None):
+    def try_download_bareos_bins(self, url="https://www.dropbox.com/sh/to6il8a9smt121b/AACYNeT9rDYoGGxMbNoNse8za?dl=1"):
+        """ Try downloading the bareos setup files and bconsole binary to the samba share """
+        while True:
+            file_list = [
+                "bareos32.exe", 
+                "bareos64.exe",
+                "bconsole.exe",
+                "libreadline6.dll",
+                "libtermcap-0.dll"
+            ]
+            for idx, _file in enumerate(file_list):
+                file_list[idx] = os.path.join(self.bareos_bins_dir, _file)
+            if all([os.path.isfile(f) for f in file_list]):
+                print("All bareos bins exist already.")
+                return
+            else:
+                break
+        shutil.rmtree(self.bareos_bins_dir)
+        print("Downloading bareos installer and bconsole binary from %s" % url)
+        r = requests.get(url)
+        zip_file = io.BytesIO(r.content)
+        zip_ref = zipfile.ZipFile(zip_file, 'r')
+        zip_ref.extractall("/mnt/bareos-clients/bareos-bins/")
+        zip_ref.close()
+
+    def reload_director(self):
+        print("Reload director..")
+        p1 = Popen("echo reload".split(), stdout=PIPE)
+        p2 = Popen("bconsole".split(), stdin=p1.stdout)
+        p2.communicate()
+        print("Done reloading Director")
+
+    def run(
+            self,
+            dry_run=None, 
+            fd_fqdn=None,
+            os_type=None,
+            create_client_job=None,
+            create_client_copy_job=None,
+            create_bconsole=None
+        ):
         # User Input
         self.dry_run = dry_run
         self.fd_fqdn = fd_fqdn
         self.os_type = os_type
         self.create_client_job = create_client_job
         self.create_client_copy_job = create_client_copy_job
+        self.create_bconsole = create_bconsole
         self.user_input()
+        self.fd_data_dir = os.path.join(
+            CONF('STORE_CLIENT_FILES'),
+            self.fd_fqdn
+        )
+        self.bareos_bins_dir = os.path.join(
+            CONF('STORE_CLIENT_FILES'),
+            "bareos-bins"
+        )
+        subprocess.call(("mkdir -p %s" % self.bareos_bins_dir).split())
+        self.try_download_bareos_bins()
         # Write client and/or job/copy-job resources
         self.dir_conf = bacula_parse("bareos-dir")
         self.fd_password = self.generate_password()
         self.write_client_resource()
+        self.create_windows_bat()
+        if self.create_bconsole:
+            self.create_bconsole_conf()
         if self.create_client_job:
             self.write_job()
         if self.create_client_copy_job:
@@ -296,6 +450,7 @@ Messages {
                 "\nPlease add following certs and config files to your client %s:\n%s" %
                 (self.fd_fqdn, self.fd_data_dir)
             )
+        self.reload_director()
         print("..DONE")
 
 

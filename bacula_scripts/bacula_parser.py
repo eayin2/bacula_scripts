@@ -28,6 +28,9 @@ manually. There could be an error in your bareos config.
 ---------\n
 """)
         return None
+    if p1.returncode != 0:
+        print("Bareos config error")
+        return None
     # Remove spaces
     text2 = "{".join(list(filter(None, [x.strip(" ") for x in text2.split("{")])))
     text2 = "}".join(list(filter(None, [x.strip(" ") for x in text2.split("}")])))
@@ -56,8 +59,13 @@ manually. There could be an error in your bareos config.
                 continue
             else:
                 quote_count = len(re.findall(unescaped_quotes, line))
+                if quote_count >= 5 and not quote_open:
+                    continue
                 directive_name = directive_name.strip()
                 directive_value = directive_value.strip()
+                quote_count_value = len(re.findall(unescaped_quotes, directive_value))
+                if quote_count_value >= 3:
+                    continue
                 if quote_count == 2:
                     # quote_count implies that directive_name has no quotes
                     line = "\"%s\" = %s" % (directive_name, directive_value)
