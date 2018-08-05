@@ -110,7 +110,7 @@ class AddClient():
 Client {{
   Name = {0}-fd
   Address = {0}
-  Password = '{1}'
+  Password = "{1}"
   File Retention = 14 months
   Job Retention = 14 months
 }}""".format(self.fd_fqdn, self.fd_password))
@@ -431,6 +431,7 @@ Console {{
             "bareos-bins"
         )
         subprocess.call(("mkdir -p %s" % self.bareos_bins_dir).split())
+        subprocess.call(("mkdir -p %s" % self.fd_data_dir).split())
         self.try_download_bareos_bins()
         # Write client and/or job/copy-job resources
         self.dir_conf = bacula_parse("bareos-dir")
