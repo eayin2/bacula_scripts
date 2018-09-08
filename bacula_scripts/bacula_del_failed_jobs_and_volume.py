@@ -1,0 +1,135 @@
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+""" bacula-del-failed-jobs.py
+
+Delete all volumes that are associated to failed jobs in the catalog and on disk,
+so that the disk space is not filled up with incomplete backups.
+
+Developing notes:
+Issuing delete twice, because running it just once some entries persisted.
+Eventually redo tests by comparing catalog entries between each deletion.
+
+Job Status Code meanings:
+A Canceled by user
+E Terminated in error
+
+NO CONFIG NEEDED
+"""
+import argparse
+import os
+import psycopg2
+import re
+import sys
+from argparse import RawDescriptionHelpFormatter
+from subprocess import Popen, PIPE
+
+from helputils.core import format_exception, systemd_services_up
+from helputils.defaultlog import log
+sys.path.append("/etc/bacula-scripts")
+from general_conf import db_host, db_user, db_name, db_password, services
+from bacula_scripts.bacula_parser import bacula_parse
+
+storages_conf_parsed = bacula_parse("bareos-dir")
+sd_conf_parsed = bacula_parse("bareos-sd")
+
+
+def get_archive_device_of_job(jobname):
+    for job_name, job_value in storages_conf_parsed["Job"].items():
+        if job_name == jobname:
+            storagename = job_value["Storage"]
+            for storage_name, storage_value in storages_conf_parsed["Storage"].items():
+                if storage_name == storagename:
+                    devicename = storage_value["Device"]
+                    for device_name, device_value in sd_conf_parsed["Device"].items():
+                        if device_name == devicename:
+                            print(devicename)
+                            print(device_value)
+                            archive_device = device_value["ArchiveDevice"]
+                            print(archive_device)
+                            if archive_device:
+                                return archive_device
+    return None
+
+
+def get_archive_device_of_pool(poolname):
+    for pool_name, pool_value in storages_conf_parsed["Pool"].items():
+        if pool_name == poolname:
+            storagename = pool_value["Storage"]
+            for storage_name, storage_value in storages_conf_parsed["Storage"].items():
+                if storage_name == storagename:
+                    devicename = storage_value["Device"]
+                    for device_name, device_value in sd_conf_parsed["Device"].items():
+                        if device_name == devicename:
+                            print(devicename)
+                            print(device_value)
+                            archive_device = device_value["ArchiveDevice"]
+                            print(archive_device)
+                            if archive_device:
+                                return archive_device
+    return None
+
+
+
+def get_volpath(jname, volname):
+    archive_device = get_archive_device_of_job(jname)
+    print(archive_device)
+    if not archive_device:
+        return None
+    volpath = os.path.join(archive_device, volname)
+    if os.path.isfile(volpath):
+        return volpath
+    else:
+        for pool_name, pool_value in storages_conf_parsed["Pool"].items():
+            archive_device = get_archive_device_of_pool(pool_name)
+            if archive_device:
+                volpath = os.path.join(archive_device, volname)
+                if os.path.isfile(volpath):
+                    return volpath
+    return None
+
+
+def del_catalog(volname, jobid):
+    p1 = Popen(["echo", "delete volume=%s yes" % volname], stdout=PIPE)
+    p2 = Popen(["bconsole"], stdin=p1.stdout, stdout=PIPE)
+    p1.stdout.close()
+    out, err = p2.communicate()
+    p1 = Popen(["echo", "delete volume=%s yes" % jobid], stdout=PIPE)
+    p2 = Popen(["bconsole"], stdin=p1.stdout, stdout=PIPE)
+    p1.stdout.close()
+    out, err = p2.communicate()
+    log.debug("out: %s, err: %s" % (out, err))
+
+
+def run(dry_run=True):
+    systemd_services_up(services)
+    try:
+        con = psycopg2.connect(database=db_name, user=db_user, host=db_host, password=db_password)
+        cur = con.cursor()
+        cur.execute("SELECT DISTINCT j.name, j.jobid, m.volumename FROM job j, jobmedia jm, "
+                    "media m WHERE j.JobStatus "
+                    "IN ('E', 'A', 'f', 't', 's') AND j.jobid=jm.jobid AND jm.mediaid=m.mediaid "
+                    "AND j.realendtime < NOW() - INTERVAL '4 days';")
+        # Selecting older than 30 days, so that running jobs won't be selected
+        failed_job_jm_media = cur.fetchall()
+    except Exception as e:
+        log.error(format_exception(e))
+    for jname, jobid, volname in failed_job_jm_media:
+        volume_path = get_volpath(jname, volname)
+        log.info("Deleting catalog entries for job (id: %s, volname: %s)." % (jobid, volname))
+        if not dry_run:
+            print("volume_path: %s" % volume_path)
+            if volume_path:
+                log.info("Removing volume from disk %s" % volume_path)
+                os.remove(volume_path)
+                del_catalog(volname, jobid)
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=RawDescriptionHelpFormatter)
+    p.add_argument("-d", action="store_true", help="Delete all failed jobs associated volumes")
+    p.add_argument("-dry", action="store_true", help="Dry run, simulates deletion")
+    args = p.parse_args()
+    if args.d and args.dry:
+        run(dry_run=True)
+    if args.d and not args.dry:
+        run(dry_run=False)
