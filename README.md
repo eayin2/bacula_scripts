@@ -59,7 +59,7 @@ Removes catalog entries of inexistent volumes, you should run this better manual
 recurring in cron, because if you accidently remove a volume and want to migrate from an offsite
 backup, then the job entry would also be gone.
 
-CONFIG: /etc/bacula-scripts/bacula_del_media_orphans_conf.py 
+CONFIG: /etc/bacula-scripts/bacula_del_media_orphans_conf.py
 
 optional arguments:
   -h, --help  show this help message and exit
@@ -80,8 +80,21 @@ optional arguments:
 
 
 
-##### usage: bacula_del_failed_jobs [-h] [-d] [-dry]
-Delete all volumes that are associated to failed jobs, to be the catalog cleaner.
+##### usage: bacula_del_vols_missing_catalog [-h] [-d D] [-dry]
+Delete all volumes that have no job entries in the catalog anymore.
+
+NO CONFIG NEEDED
+
+optional arguments:
+  -h, --help  show this help message and exit
+  -d D        Specify directory to be scanned for vols without catalog entry
+  -dry        Dry run, simulates deletion
+
+
+
+##### usage: bacula_del_failed_jobs_and_volume [-h] [-d] [-dry]
+Delete all volumes that are associated to failed jobs in the catalog and on disk,
+so that the disk space is not filled up with incomplete backups.
 
 Developing notes:
 Issuing delete twice, because running it just once some entries persisted.
