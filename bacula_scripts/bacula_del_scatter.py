@@ -2,7 +2,10 @@
 # -*- coding: utf-8 -*-
 """ bacula-del-jobs.py
 
-Delete redundant full media vols which are following to narrowly.
+Warning: Use with caution.
+
+Prune redundant full media vols which are following to narrowly.
+Run bacula_del_purged_vols after this script. Then the pruned files get deleted.
 
 Example:
  F F F I F F F D F F F F F F F F
@@ -14,7 +17,7 @@ which have a Full following backup are allowed to be deleted.
 Then apply the even spread function and have at maximum 1 Full backup within 3 weeks.
 The even spread function favors older backups.
 
-CONFIG: /etc/bacula-scripts/bacula_prune_scattered_conf.py
+CONFIG: /etc/bacula-scripts/bacula_del_scatter_conf.py
 """
 import argparse
 import os
@@ -34,7 +37,7 @@ from helputils.core import format_exception, find_mountpoint, systemd_services_u
 from helputils.defaultlog import log
 
 sys.path.append("/etc/bacula-scripts")
-import bacula_prune_scattered_conf as conf_mod
+import bacula_del_scatter_conf as conf_mod
 from general_conf import db_host, db_user, db_name, db_password, services
 
 

@@ -1,6 +1,10 @@
 """ bacula-del-jobs.py
 
-Delete redundant full media vols which are following to narrowly.
+Warning: Use with caution.
+
+Prune redundant full media vols which are following to narrowly.
+
+Run bacula_del_purged_vols after this script. Then the pruned files get deleted.
 
 Example:
  F F F I F F F D F F F F F F F F
@@ -18,5 +22,5 @@ CONFIG: /etc/bacula-scripts/bacula_prune_scattered_conf.py
 # Enter the fileset, pool names and job name which you want full backups scatter-deleted
 FILESET = "rootfs"
 POOL_NAMES = "'Full-ST', 'Differential-ST', 'Incremental-ST'"
-JNAME = "st-rootfs-server01"
+JOB_NAME = "st-rootfs-server01"
 DRY_RUN = False
