@@ -54,18 +54,21 @@ storagenames_placeholders = ', '.join([placeholder] * len(CONF('DEL_STORAGE_NAME
 
 def build_volpath(volname, storagename, sd_conf_parsed, storages_parsed):
     """Looks in config files for device path and returns devicename joined with the volname."""
-    for storage_name, storage_value in storages_parsed["Storage"].items():
-        if storagename == storage_name:
-            devicename = storage_value['Device']
-            for device_name, device_value in sd_conf_parsed["Device"].items():
-                if devicename == device_name:
-                    volpath = os.path.join(device_value['ArchiveDevice'], volname)
-                    if (not find_mountpoint(device_value["ArchiveDevice"]) == "/" or storagename in
-                            CONF('DEL_STORAGE_NAMES_CATALOG')):
-                        return volpath
-                    else:
-                        print("Device %s not mounted. Please mount it." % devicename)
-                        return None
+    device = storages_parsed["Storage"][storagename]["Device"]
+    if device:
+        ad = sd_conf_parsed["Device"][device]["ArchiveDevice"]
+        if not ad:
+            # Add Autochanger support 10/2018
+            autochanger = sd_conf_parsed["Autochanger"][device]["ArchiveDevice"]
+            if autochanger:
+                # Just get first virtual device, because autochanger device should have the same
+                # archive device anyways
+                device = autochanger.split(",")[0].strip()
+                ad = sd_conf_parsed["Device"][device]["ArchiveDevice"]            
+    if ad:
+        volpath = os.path.join(ad, volname)
+        if (not find_mountpoint(ad) == "/" or storagename in CONF('DEL_STORAGE_NAMES_CATALOG')):
+            return volpath
 
 
 def del_backups(b):

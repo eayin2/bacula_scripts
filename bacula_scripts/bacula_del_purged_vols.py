@@ -147,6 +147,16 @@ def build_volpath(volname, storagename, sd_conf_parsed, storages_conf_parsed, hn
                     #           devicename))
                     if not find_mountpoint(device_value["ArchiveDevice"], hn) == "/":
                         return volpath
+            # Add Autochanger support 10/2018
+            autochanger = sd_conf_parsed["Autochanger"][devicename]
+            if autochanger:
+                # Just get first virtual device, because autochanger device should have the same
+                # archive device anyways
+                device = autochanger["Device"].split(",")[0].strip()
+                ad = sd_conf_parsed["Device"][device]["ArchiveDevice"]
+                volpath = os.path.join(ad, volname)
+                if not find_mountpoint(ad, hn) == "/":
+                    return volpath
 
 
 def storagehostname(storages_conf_parsed, sn):

@@ -41,13 +41,7 @@ manually. There could be an error in your bareos config.
     unescaped_quotes = r'(?<!\\)(?:\\\\)*"'
     has_comma = r'(,)(?=(?:[^"]|"[^"]*")*$)'
     for line in text2.split("\n"):
-        if line.lower().startswith("device =") and not quote_open:
-            # Add Device preprocessing for multiple Autochanger devices 10/2018
-            line = line.replace('"', "")
-            # Transform to one quoted string
-            splitted = line.split("=")
-            line = '"%s" = "%s"' % (splitted[0].strip(), splitted[1].lstrip())
-        elif "=" in line or quote_open:
+        if "=" in line or quote_open:
             if not quote_open:
                 # Split only on first equal sign occurence
                 directive = line.split("=", 1)
@@ -87,7 +81,6 @@ manually. There could be an error in your bareos config.
                 elif quote_count == 1 and not quote_open:
                     quote_open = True
                     continue
-        print(line)
         text3.append(line)
 
     # Add Quotes to Resource type

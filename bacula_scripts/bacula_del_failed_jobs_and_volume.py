@@ -32,42 +32,33 @@ from bacula_scripts.bacula_parser import bacula_parse
 storages_conf_parsed = bacula_parse("bareos-dir")
 sd_conf_parsed = bacula_parse("bareos-sd")
 
+def get_archive_device_of_device(device):
+    sd_conf_parsed = bacula_parse("bareos-sd")
+    if device:
+        device2 = sd_conf_parsed["Device"][device]
+        if device2:
+            ad = device2["ArchiveDevice"]
+            return ad
+        elif not device2:
+            device2 = sd_conf_parsed["Autochanger"][device]["Device"]
+            if device2:
+                device2 = autochanger["Device"].split(",")[0].strip()
+                ad = sd_conf_parsed["Device"][device2]["ArchiveDevice"]
+                return ad
+    return None
 
 def get_archive_device_of_job(jobname):
-    for job_name, job_value in storages_conf_parsed["Job"].items():
-        if job_name == jobname:
-            storagename = job_value["Storage"]
-            for storage_name, storage_value in storages_conf_parsed["Storage"].items():
-                if storage_name == storagename:
-                    devicename = storage_value["Device"]
-                    for device_name, device_value in sd_conf_parsed["Device"].items():
-                        if device_name == devicename:
-                            print(devicename)
-                            print(device_value)
-                            archive_device = device_value["ArchiveDevice"]
-                            print(archive_device)
-                            if archive_device:
-                                return archive_device
+    job = storages_conf_parsed["Job"].get(jobname, None)
+    if job:
+        device = job["Storage"]["Device"]
+        return get_archive_device_of_device(device)
     return None
 
 
 def get_archive_device_of_pool(poolname):
-    for pool_name, pool_value in storages_conf_parsed["Pool"].items():
-        if pool_name == poolname:
-            storagename = pool_value["Storage"]
-            for storage_name, storage_value in storages_conf_parsed["Storage"].items():
-                if storage_name == storagename:
-                    devicename = storage_value["Device"]
-                    for device_name, device_value in sd_conf_parsed["Device"].items():
-                        if device_name == devicename:
-                            print(devicename)
-                            print(device_value)
-                            archive_device = device_value["ArchiveDevice"]
-                            print(archive_device)
-                            if archive_device:
-                                return archive_device
-    return None
-
+    storage = storages_conf_parsed["Pool"]["Storage"]
+    device = storages_conf_parsed["Storage"][storage]["Device"]
+    return get_archive_device_of_device(device)
 
 
 def get_volpath(jname, volname):
