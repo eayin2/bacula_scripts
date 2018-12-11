@@ -87,7 +87,6 @@ manually. There could be an error in your bareos config.
                 elif quote_count == 1 and not quote_open:
                     quote_open = True
                     continue
-        print(line)
         text3.append(line)
 
     # Add Quotes to Resource type

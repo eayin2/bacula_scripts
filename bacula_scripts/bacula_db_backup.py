@@ -5,8 +5,8 @@
 You can create or delete database dumps of postgresql, mongodb and mysql backends.
 
 Use this for example within your job:
-  Run Before Job = "bacula_db_backup -c mf24 -p '/db_dumps' -t postgresql"
-  Run After Job = "bacula_db_backup -d mf24 -p '/db_dumps' -t postgresql"
+  Run Before Job = "bacula_db_backup -c mf24 -dir '/db_dumps' -t postgresql"
+  Run After Job = "bacula_db_backup -d mf24 -dir '/db_dumps' -t postgresql"
 
 To prevent permission issues, create a '/db_dumps' directory with 777 permissions:
 `mkdir -m 777 /db_dump`. The directory has to be accessed namely by both postgres and bareos.

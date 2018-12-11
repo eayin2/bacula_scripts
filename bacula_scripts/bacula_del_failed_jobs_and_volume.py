@@ -40,7 +40,10 @@ def get_archive_device_of_device(device):
             ad = device2["ArchiveDevice"]
             return ad
         elif not device2:
-            device2 = sd_conf_parsed["Autochanger"][device]["Device"]
+            try:
+                device2 = sd_conf_parsed["Autochanger"][device]["Device"]
+            except:
+                return None
             if device2:
                 device2 = autochanger["Device"].split(",")[0].strip()
                 ad = sd_conf_parsed["Device"][device2]["ArchiveDevice"]
@@ -50,7 +53,7 @@ def get_archive_device_of_device(device):
 def get_archive_device_of_job(jobname):
     job = storages_conf_parsed["Job"].get(jobname, None)
     if job:
-        device = job["Storage"]["Device"]
+        device = job["Storage"]
         return get_archive_device_of_device(device)
     return None
 
