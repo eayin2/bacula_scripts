@@ -464,8 +464,8 @@ def main():
         help="Specify your client's OS. Supported: linux or windows",
         choices=["linux", "windows"]
     )
-    p.add_argument("-create_client_job", help="Create a job for the client?")
-    p.add_argument("-create_client_copy_job", help="Create a copy job for the client?")
+    p.add_argument("-create_client_job", action="store_true", help="Create a job for the client?")
+    p.add_argument("-create_client_copy_job", action="store_true", help="Create a copy job for the client?")
     p.add_argument("-dry_run", action="store_true", help="Simulate deletion")
     args = p.parse_args()
     if args.r:
