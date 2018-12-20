@@ -56,7 +56,10 @@ def build_volpath(volname, storagename, sd_conf_parsed, storages_parsed):
     """Looks in config files for device path and returns devicename joined with the volname."""
     device = storages_parsed["Storage"][storagename]["Device"]
     if device:
-        ad = sd_conf_parsed["Device"][device]["ArchiveDevice"]
+        try:
+            ad = sd_conf_parsed["Device"][device]["ArchiveDevice"]
+        except:
+            ad = None
         if not ad:
             # Add Autochanger support 10/2018
             autochanger = sd_conf_parsed["Autochanger"][device]["ArchiveDevice"]
