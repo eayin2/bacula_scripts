@@ -105,7 +105,7 @@ def parse_vol(volume, hn=False):
     """Parses volume with bls and returns jobname and timestamp of job. Make sure to have bls in your $PATH and add
        `user ALL=NOPASSWD: /usr/bin/timeout 0.1 bls -jv` to sudoers"""
     log.debug("Run `/usr/bin/timeout 0.1 bls -jv %s` (should be absolute path)" % volume)
-    cmd = ["/usr/bin/timeout", "0.1", "bls", "-jv", volume]
+    cmd = ["timeout", "0.1", "bls", "-jv", volume]
     if hn and not islocal(hn):
         cmd = ["ssh", hn, "sudo"] + cmd
     p = Popen(cmd, stdout=PIPE, stderr=PIPE)
@@ -186,7 +186,7 @@ def del_backups(remove_backup):
                     log.info("Deleting failed, apparently volpath %s doesn't exist." % volpath)
             elif not islocal(hn):
                 try:
-                    p = Popen(["ssh", hn, "sudo", "/usr/bin/rm", volpath])
+                    p = Popen(["ssh", hn, "sudo", "rm", volpath])
                     o, e = p.communicate()
                     if e:
                         if "ssh: Could not resolve hostname" in e.decode("UTF-8"):

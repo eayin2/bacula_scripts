@@ -3,13 +3,14 @@ from setuptools import find_packages
 
 setup(
     name="bacula_scripts",
-    version="0.9.6",
+    version="1.0.0",
     author="eayin2",
     author_email="eayin2@gmail.com",
     packages=find_packages(),
     url="https://github.com/eayin2/bacula_scripts",
     description="Bunch of bacula scripts. Includes also scripts to realize offsite backup solution.",
     install_requires=["gymail", "helputils", "psycopg2-binary", "pexpect", "lark-parser"],
+    include_package_data=True,
     entry_points={
         "console_scripts": [
             "bacula_add_client = bacula_scripts.bacula_add_client:main",
