@@ -7,7 +7,7 @@ with bareos.
 You can install this package with `pip3 install bacula_scripts`
 Python dependencies: helputils, gymail, psycopg2, lark-parser
 Distro dependencies: Both bacula and bareos come with the tool `bls`, i.e. install
-bacula-/bareos-tools on your distro.
+`bacula-tools` or `bareos-tools` on your distro.
 
 #### Configuration
 See the example configs in etc/bacula_scripts and modify for your needs. general_conf.py is
