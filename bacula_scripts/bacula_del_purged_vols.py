@@ -115,7 +115,7 @@ def parse_vol(volume, hn=False):
     bls -jv` to sudoers. Check with `type timeout` timeout's binary path on your system.
     """
     log.debug(
-        "Run `%s 0.1 bls -jv %s` (should be absolute path)" % (
+        "Run `%s 0.1 %s -jv %s` (should be absolute path)" % (
             CONF("timeout_bin"), CONF("bls_bin"), volume
         )
     )
@@ -255,7 +255,7 @@ def run(dry_run=False):
             volpath = build_volpath(volname, storagename, sd_conf_parsed, storages_conf_parsed)
         elif not islocal(hn):
             log.info("content of %s:%s (hn:filename)" % (hn, fn))
-            remote_sd_conf_parsed = bacula_parse(CONF("bareos-sd_bin"), hn=hn)
+            remote_sd_conf_parsed = bacula_parse(CONF("bacula_sd_bin"), hn=hn)
             volpath = build_volpath(volname, storagename, remote_sd_conf_parsed, storages_conf_parsed, hn)
         if not volpath:
             log.info("Skipping this purged volume, because storage device is not mounted. %s:%s" % (hn, volpath))

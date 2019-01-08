@@ -1,7 +1,22 @@
 ## bacula_scripts
 
-This package comes with various bacula and bareos compatible scripts. Scripts were mainly tested
-with bareos.
+#### What is this?
+This package contains a bunch of Bacula and Bareos compatible scripts. They were mainly tested
+with Bareos. The scripts ease the process of backup deletion. Bacula and Bareos are both
+designed to keep backups as long as possible. Backups are only pruned if the disk space is full
+ This design choice clutters your storage space and
+for me it made it difficult to scale my storage space.
+By configurating the scripts you can break this design and purge backups that have been
+pruned already. The backups will first be deleted from the catalog with the script
+`bacula_prune_all` and then removed from the disk using `bacula_del_purged_vols`
+
+We want to remove purged backups for disk space, scaling reason, but we don't want to delete all
+backups that have been marked as 'Purged', because if you don't do backups for a very long time,
+and have set 'AutoPrune = yes', plus your Retention is due, then important backups get deleted.
+Also if you delete a full backup, which has been marked 'purged', but still have incremental
+backups dependent on it, then you'll have a broken incremental backup chain.
+
+
 
 #### Install
 You can install this package with `pip3 install bacula_scripts`
@@ -10,22 +25,11 @@ Distro dependencies: Both bacula and bareos come with the tool `bls`, i.e. insta
 `bacula-tools` or `bareos-tools` on your distro.
 
 #### Configuration
-See the example configs in etc/bacula_scripts and modify for your needs. general_conf.py is
-used by multiple scripts.
+See the example configs in `bacula_scripts/etc/bacula_scripts/` and modify for your needs. The
+config file `general_conf.py` is used by multiple scripts.
 
 
 #### Usage
-
-
-##### usage: bacula_stats [-h] [-a] [-r] [--version]
-optional arguments:
-  -h, --help    show this help message and exit
-  -a, --all     Return all backups.
-  -r, --recent  Return recent backups
-  --version     show program's version number and exit
-
-
-
 
 #### usage: bacula_del_purged_vols [-h] [-d] [-dry]
 
@@ -43,13 +47,6 @@ Deletion rules:
   This script will also work for remote storage daemons, provided that you setup the SSH alias
   in /root/.ssh/config with the same hostname that you defined for the "Address" (=hostname) in
   storages.conf.
-
-Why this script?
-We want to remove purged backups for disk space, scaling reason, but we don't want to delete all
-backups that have been marked as 'Purged', because if you don't do backups for a very long time,
-and have set 'AutoPrune = yes', plus your Retention is due, then important backups get deleted.
-Also if you delete a full backup, which has been marked 'purged', but still have incremental
-backups dependent on it, then you'll have a broken incremental backup chain.
 
 Developing notes:
 (1) We have to get the jobname and backup time from the volume file with bls, because purged
@@ -114,6 +111,25 @@ CONFIG: /etc/bacula-scripts/bacula_del_purged_vols_conf.py
 optional arguments:
   -h, --help  show this help message and exit
   -d          Remove purged jobs from catalog and disk
+  -dry        Simulate deletion
+
+
+
+
+#### usage: bacula_prune_all [-h] [-p] [-dry]
+
+ bacula-prune-all.py
+
+Prune all existing volumes. Run `bconsole prune volume=x yes` for all existing volumes. Latter
+command will only prune the volume, if the configured retention time is passed.
+
+Run this before bacula_del_purged_vols to force bacula to apply prunes rules for all volumes.
+
+NO CONFIG
+
+optional arguments:
+  -h, --help  show this help message and exit
+  -p          Prune all volumes
   -dry        Simulate deletion
 
 
