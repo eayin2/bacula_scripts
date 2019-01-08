@@ -16,7 +16,7 @@ def preprocess_config(daemon, hn=False):
     """Parse bareos-dir, bareos-sd or bareos-fd config and return as dictionary"""
     cmd = ("%s -xc" % daemon).split()
     if hn:
-        cmd = ["ssh", "-tt", hn] + cmd
+        cmd = ["ssh", "-tt", hn, "sudo"] + cmd
     p1 = Popen(cmd, stdout=PIPE)
     try:
         text2 = p1.communicate()[0].decode("UTF-8")

@@ -3,7 +3,7 @@ from setuptools import find_packages
 
 setup(
     name="bacula_scripts",
-    version="1.0.0",
+    version="1.0.1",
     author="eayin2",
     author_email="eayin2@gmail.com",
     packages=find_packages(),

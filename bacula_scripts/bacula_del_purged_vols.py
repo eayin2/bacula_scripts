@@ -102,10 +102,18 @@ def CONF_SET(attr, val):
 
 
 def parse_vol(volume, hn=False):
-    """Parses volume with bls and returns jobname and timestamp of job. Make sure to have bls in your $PATH and add
-       `user ALL=NOPASSWD: /usr/bin/timeout 0.1 bls -jv` to sudoers"""
-    log.debug("Run `/usr/bin/timeout 0.1 bls -jv %s` (should be absolute path)" % volume)
-    cmd = ["timeout", "0.1", "bls", "-jv", volume]
+    """
+    Parses volume with bls and returns jobname and timestamp of job. 
+
+    Make sure to have bls in your $PATH and add e.g. `user ALL=NOPASSWD: /usr/bin/timeout 0.1
+    bls -jv` to sudoers. Check with `type timeout` timeout's binary path on your system.
+    """
+    log.debug(
+        "Run `%s 0.1 bls -jv %s` (should be absolute path)" % (
+            CONF("timeout_bin"), CONF("bls_bin"), volume
+        )
+    )
+    cmd = [CONF("timeout_bin"), "0.1", CONF("bls_bin"), "-jv", volume]
     if hn and not islocal(hn):
         cmd = ["ssh", hn, "sudo"] + cmd
     p = Popen(cmd, stdout=PIPE, stderr=PIPE)
@@ -186,7 +194,7 @@ def del_backups(remove_backup):
                     log.info("Deleting failed, apparently volpath %s doesn't exist." % volpath)
             elif not islocal(hn):
                 try:
-                    p = Popen(["ssh", hn, "sudo", "rm", volpath])
+                    p = Popen(["ssh", hn, "sudo", CONF("rm_bin"), volpath])
                     o, e = p.communicate()
                     if e:
                         if "ssh: Could not resolve hostname" in e.decode("UTF-8"):
@@ -230,8 +238,8 @@ def run(dry_run=False):
     unpurged_backups = [x for x in volumes if x[2] != "Purged"]
     full_purged, diff_purged, inc_purged, remove_backup = [list() for x in range(4)]
 
-    sd_conf_parsed = bacula_parse("bareos-sd")
-    storages_conf_parsed = bacula_parse("bareos-dir")
+    sd_conf_parsed = bacula_parse(CONF("bacula_sd_bin"))
+    storages_conf_parsed = bacula_parse(CONF("bacula_dir_bin"))
 
     log.info("\n\n\n\nSorting purged volumes to full_purged, diff_purged and inc_purged.\n\n")
     log.info("There are %s purged_vols and %s unpurged_backups" % (len(purged_vols), len(unpurged_backups)))
@@ -241,7 +249,7 @@ def run(dry_run=False):
             volpath = build_volpath(volname, storagename, sd_conf_parsed, storages_conf_parsed)
         elif not islocal(hn):
             log.info("content of %s:%s (hn:filename)" % (hn, fn))
-            remote_sd_conf_parsed = bacula_parse("bareos-sd", hn=hn)
+            remote_sd_conf_parsed = bacula_parse(CONF("bareos-sd_bin"), hn=hn)
             volpath = build_volpath(volname, storagename, remote_sd_conf_parsed, storages_conf_parsed, hn)
         if not volpath:
             log.info("Skipping this purged volume, because storage device is not mounted. %s:%s" % (hn, volpath))
