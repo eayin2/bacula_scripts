@@ -64,11 +64,17 @@ User notes:
       IdentitiesOnly yes
       User someuser
       ConnectTimeout=5
+
+    # SUDOERS vs root SSH
     Now also make sure that you add following commands for the SSH user in sudoers with
-    NOPASSWD or just SSH to root@your.host!
-      someuser ALL=NOPASSWD: /usr/bin/cat /etc/bareos/bareos-sd.conf
-      someuser ALL=NOPASSWD: /usr/bin/timeout 0.1 bls -jv *
-      someuser ALL=NOPASSWD: /usr/bin/rm /mnt/path/to/your/offsite/storage/*
+    NOPASSWD or just SSH to root@your.host! Here we assume you created a user named
+    bareos01 on the remote host that runs bacula-sd/bareos-sd. This example is for bareos on
+    Ubuntu, your system paths may be different. Use `type bareos-sd`, `type timeout`.., to check
+    their paths. Example:
+      bareos01 ALL=NOPASSWD: /usr/sbin/bareos-sd -xc
+      bareos01 ALL=NOPASSWD: /usr/sbin/bareos-dir -xc
+      bareos01 ALL=NOPASSWD: /usr/bin/timeout 0.1 /usr/sbin/bls -jv *
+      bareos01 ALL=NOPASSWD: /bin/rm /mnt/8tb01/offsite01/*
 
 CONFIG: /etc/bacula-scripts/bacula_del_purged_vols_conf.py
 """
@@ -103,7 +109,7 @@ def CONF_SET(attr, val):
 
 def parse_vol(volume, hn=False):
     """
-    Parses volume with bls and returns jobname and timestamp of job. 
+    Parses volume with bls and returns jobname and timestamp of job.
 
     Make sure to have bls in your $PATH and add e.g. `user ALL=NOPASSWD: /usr/bin/timeout 0.1
     bls -jv` to sudoers. Check with `type timeout` timeout's binary path on your system.
