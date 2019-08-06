@@ -4,17 +4,24 @@
 `bacula_scripts` bundles scripts for Bacula/Bareos to delete backups, add new clients and
 monitor backups.
 This package is tested for bareos, but should work for Bacula too, because both are quiete
-compatible to each other. I named this project `bacula_scripts` because Bacula is more popular.
+compatible to each other. Nevertheless this project has been named `bacula_scripts` in regard
+to Bacula's origin.
 
 ## Background
-Bareos is designed to keep backups as long as possible and backups are never deleted unless the
+Bareos is designed to keep backups as long as possible, never delete them, unless the
 disk space is full, then pruned volumes will be reused/overwritten with the new backup. This
 requires the backup adminstrator to configure the number of volumes and retention policies
 precisely. Continous monitoring is required to make sure there are enough volumes available for
 reuse. 
 
 To break this design you can purge and delete volumes before the disk is full. `bacula_scripts`
-assists in doing so.
+assists in doing that.
+
+## Install
+You can install this package with `pip3 install bacula_scripts`
+Python dependencies: helputils, gymail, psycopg2, lark-parser
+Distro dependencies: Both bacula and bareos come with the tool `bls`, i.e. install
+`bacula-tools` or `bareos-tools` on your distro.
 
 ## Delete old and orphanned backups
 - Configure Bareos to use only one backup per volume.
@@ -34,18 +41,11 @@ assists in doing so.
      two full backups for a specific backup job left, the last two full backup volumes won't be
      deleted either (hardcoded into the script).
 
-
-## Install
-You can install this package with `pip3 install bacula_scripts`
-Python dependencies: helputils, gymail, psycopg2, lark-parser
-Distro dependencies: Both bacula and bareos come with the tool `bls`, i.e. install
-`bacula-tools` or `bareos-tools` on your distro.
-
 ## Config example
 See the example configs in `bacula_scripts/etc/bacula_scripts/` and modify for your needs. The
 config file `general_conf.py` is used by multiple scripts.
 
-## Usage
+## List usage of script
 
 ### usage: bacula_del_purged_vols [-h] [-d] [-dry]
 Remove volumes and catalog entries for backups that have been marked 'Purged' based on the
