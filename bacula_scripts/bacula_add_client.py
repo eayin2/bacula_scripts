@@ -83,6 +83,20 @@ class AddClient():
                 if self.os_type.lower() in ["linux", "windows"]:
                     break
                 print("Only 'linux' and 'windows' accepted as choices.")
+        if not self.fileset:
+            while True:
+                avail_filesets = self.dir_conf.get('FileSet', None)
+                if avail_filesets:
+                    avail_filesets = avail_filesets.keys()
+                else:
+                    print("No FileSets configured in bareos-dir config. Please configure a " \
+                          "fileset in /etc/bareos-dir.d/filesets/ before adding a new " \
+                          "client. Exiting.")                    
+                self.fileset = input("Choose between these FileSets: %s : " % avail_filesets)
+                if self.fileset in avail_filesets:
+                    CONF_SET('ADD_JOB_FILESET', self.fileset)
+                    break
+                print("Specified fileset does not exist in bareos-dir config")
         if not self.create_client_job:
             self.create_client_job = self.ask("Do you want to create a job for this client?")
         if not self.create_client_copy_job:
@@ -409,6 +423,7 @@ Console {{
             self,
             dry_run=None, 
             fd_fqdn=None,
+            fileset=None,
             os_type=None,
             create_client_job=None,
             create_client_copy_job=None,
@@ -416,7 +431,9 @@ Console {{
         ):
         # User Input
         self.dry_run = dry_run
+        self.dir_conf = bacula_parse("bareos-dir")
         self.fd_fqdn = fd_fqdn
+        self.fileset = fileset
         self.os_type = os_type
         self.create_client_job = create_client_job
         self.create_client_copy_job = create_client_copy_job
@@ -434,7 +451,6 @@ Console {{
         subprocess.call(("mkdir -p %s" % self.fd_data_dir).split())
         self.try_download_bareos_bins()
         # Write client and/or job/copy-job resources
-        self.dir_conf = bacula_parse("bareos-dir")
         self.fd_password = self.generate_password()
         self.write_client_resource()
         self.create_windows_bat()

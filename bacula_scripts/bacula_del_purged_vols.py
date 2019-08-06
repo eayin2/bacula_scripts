@@ -254,7 +254,7 @@ def run(dry_run=False):
         if islocal(hn):
             volpath = build_volpath(volname, storagename, sd_conf_parsed, storages_conf_parsed)
         elif not islocal(hn):
-            log.info("content of %s:%s (hn:filename)" % (hn, fn))
+            log.info("content of %s" % hn)
             remote_sd_conf_parsed = bacula_parse(CONF("bacula_sd_bin"), hn=hn)
             volpath = build_volpath(volname, storagename, remote_sd_conf_parsed, storages_conf_parsed, hn)
         if not volpath:

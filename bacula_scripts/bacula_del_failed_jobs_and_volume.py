@@ -32,6 +32,7 @@ from bacula_scripts.bacula_parser import bacula_parse
 storages_conf_parsed = bacula_parse("bareos-dir")
 sd_conf_parsed = bacula_parse("bareos-sd")
 
+
 def get_archive_device_of_device(device):
     sd_conf_parsed = bacula_parse("bareos-sd")
     if device:
@@ -49,6 +50,7 @@ def get_archive_device_of_device(device):
                 ad = sd_conf_parsed["Device"][device2]["ArchiveDevice"]
                 return ad
     return None
+
 
 def get_archive_device_of_job(jobname):
     job = storages_conf_parsed["Job"].get(jobname, None)
