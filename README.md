@@ -23,6 +23,10 @@ Python dependencies: helputils, gymail, psycopg2, lark-parser
 Distro dependencies: Both bacula and bareos come with the tool `bls`, i.e. install
 `bacula-tools` or `bareos-tools` on your distro.
 
+## Config example
+See the example configs in `bacula_scripts/etc/bacula_scripts/` and modify for your needs. The
+config file `general_conf.py` is used by multiple scripts.
+
 ## Delete old and orphanned backups
 - Configure Bareos to use only one backup per volume.
 - Configure:
@@ -34,16 +38,11 @@ Distro dependencies: Both bacula and bareos come with the tool `bls`, i.e. insta
   - `bacula_prune_all -p` will run your prune policy for all backups
   - `bacula_del_failed_jobs_and_volume -d` remove volumes that contain an incomplete backup
   - `bacula_del_vols_missing_catalog -d /path/to/your/storage` removes volumes from the
-     specified that are not know by the catalog.
+     specified storage that are not know by the catalog.
   - `bacula_del_purged_vols -d` deletes volumes from disk that have been marked purged
-    - Note: `bacula_del_purged_vols` doesn't delete all purged-marked volumes, but only if no
-     backup is dependent on the volume anymore, it will be deleted. Also if there are less than
-     two full backups for a specific backup job left, the last two full backup volumes won't be
-     deleted either (hardcoded into the script).
-
-## Config example
-See the example configs in `bacula_scripts/etc/bacula_scripts/` and modify for your needs. The
-config file `general_conf.py` is used by multiple scripts.
+    - Note: `bacula_del_purged_vols` doesn't delete all purged-marked volumes, but only those
+     with no other dependent backups. If there are less than two full backups for a specific
+     backup job left, the last two full backup volumes won't be deleted either (hardcoded).
 
 ## List usage of script
 
