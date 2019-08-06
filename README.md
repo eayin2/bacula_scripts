@@ -1,40 +1,53 @@
-## bacula_scripts
+# bacula_scripts
 
-#### What is this?
-This package contains a bunch of Bacula and Bareos compatible scripts. They were mainly tested
-with Bareos. The scripts ease the process of backup deletion. Bacula and Bareos are both
-designed to keep backups as long as possible. Backups are only pruned if the disk space is full
- This design choice clutters your storage space and
-for me it made it difficult to scale my storage space.
-By configurating the scripts you can break this design and purge backups that have been
-pruned already. The backups will first be deleted from the catalog with the script
-`bacula_prune_all` and then removed from the disk using `bacula_del_purged_vols`
+## Description
+`bacula_scripts` bundles scripts for Bacula/Bareos to delete backups, add new clients and
+monitor backups.
+This package is tested for bareos, but should work for Bacula too, because both are quiete
+compatible to each other. I named this project `bacula_scripts` because Bacula is more popular.
 
-We want to remove purged backups for disk space, scaling reason, but we don't want to delete all
-backups that have been marked as 'Purged', because if you don't do backups for a very long time,
-and have set 'AutoPrune = yes', plus your Retention is due, then important backups get deleted.
-Also if you delete a full backup, which has been marked 'purged', but still have incremental
-backups dependent on it, then you'll have a broken incremental backup chain.
+## Background
+Bareos is designed to keep backups as long as possible and backups are never deleted unless the
+disk space is full, then pruned volumes will be reused/overwritten with the new backup. This
+requires the backup adminstrator to configure the number of volumes and retention policies
+precisely. Continous monitoring is required to make sure there are enough volumes available for
+reuse. 
+
+To break this design you can purge and delete volumes before the disk is full. `bacula_scripts`
+assists in doing so.
+
+## Delete old and orphanned backups
+- Configure Bareos to use only one backup per volume.
+- Configure:
+  - /etc/bacula-scripts/bacula_prune_all_conf.py
+  - /etc/bacula-scripts/bacula_del_failed_jobs_and_volume_conf.py
+  - /etc/bacula-scripts/bacula_del_vols_missing_catalog_conf.py
+  - /etc/bacula-scripts/bacula_del_purged_vols_conf.py
+- Run these scripts in order:
+  - `bacula_prune_all -p` will run your prune policy for all backups
+  - `bacula_del_failed_jobs_and_volume -d` remove volumes that contain an incomplete backup
+  - `bacula_del_vols_missing_catalog -d /path/to/your/storage` removes volumes from the
+     specified that are not know by the catalog.
+  - `bacula_del_purged_vols -d` deletes volumes from disk that have been marked purged
+    - Note: `bacula_del_purged_vols` doesn't delete all purged-marked volumes, but only if no
+     backup is dependent on the volume anymore, it will be deleted. Also if there are less than
+     two full backups for a specific backup job left, the last two full backup volumes won't be
+     deleted either (hardcoded into the script).
 
 
-
-#### Install
+## Install
 You can install this package with `pip3 install bacula_scripts`
 Python dependencies: helputils, gymail, psycopg2, lark-parser
 Distro dependencies: Both bacula and bareos come with the tool `bls`, i.e. install
 `bacula-tools` or `bareos-tools` on your distro.
 
-#### Configuration
+## Config example
 See the example configs in `bacula_scripts/etc/bacula_scripts/` and modify for your needs. The
 config file `general_conf.py` is used by multiple scripts.
 
+## Usage
 
-#### Usage
-
-#### usage: bacula_del_purged_vols [-h] [-d] [-dry]
-
- bacula-del-purged-vols.py
-
+### usage: bacula_del_purged_vols [-h] [-d] [-dry]
 Remove volumes and catalog entries for backups that have been marked 'Purged' based on the
 deletion rules.
 
@@ -114,12 +127,7 @@ optional arguments:
   -dry        Simulate deletion
 
 
-
-
-#### usage: bacula_prune_all [-h] [-p] [-dry]
-
- bacula-prune-all.py
-
+### usage: bacula_prune_all [-h] [-p] [-dry]
 Prune all existing volumes. Run `bconsole prune volume=x yes` for all existing volumes. Latter
 command will only prune the volume, if the configured retention time is passed.
 
@@ -133,9 +141,7 @@ optional arguments:
   -dry        Simulate deletion
 
 
-
-
-##### usage: bacula_del_jobs [-h] [-d] [-dry]
+### usage: bacula_del_jobs [-h] [-d] [-dry]
 WARNING! Use with caution.
 
 Delete all catalog entries that are associated to the given storage_name and their volume file
@@ -160,9 +166,7 @@ optional arguments:
   -dry        Simulate deletion
 
 
-
-
-##### usage: bacula_del_media_orphans [-h] [-d] [-dry]
+### usage: bacula_del_media_orphans [-h] [-d] [-dry]
 Delete all catalog entries, which backup volume doesn't exist anymore.
 
 Removes catalog entries of inexistent volumes, you should run this better manually and not
@@ -177,8 +181,7 @@ optional arguments:
   -dry        Simulate deletion
 
 
-
-##### usage: bacula_offsite_backup_age_watch [-h] [-c]
+### usage: bacula_offsite_backup_age_watch [-h] [-c]
 Check when the last offsite backup was performed and send a warning notification mail if the
 backup is too old. Add a symlink to this script for example to cron.weekly.
 
@@ -189,8 +192,7 @@ optional arguments:
   -c          Check backup age
 
 
-
-##### usage: bacula_del_vols_missing_catalog [-h] [-d D] [-dry]
+### usage: bacula_del_vols_missing_catalog [-h] [-d D] [-dry]
 Delete all volumes that have no job entries in the catalog anymore.
 
 NO CONFIG NEEDED
@@ -201,8 +203,7 @@ optional arguments:
   -dry        Dry run, simulates deletion
 
 
-
-##### usage: bacula_del_failed_jobs_and_volume [-h] [-d] [-dry]
+### usage: bacula_del_failed_jobs_and_volume [-h] [-d] [-dry]
 Delete all volumes that are associated to failed jobs in the catalog and on disk,
 so that the disk space is not filled up with incomplete backups.
 
@@ -223,7 +224,7 @@ optional arguments:
 
 
 
-##### usage: bacula_add_client [-h] [-r] [-fd_fqdn FD_FQDN]
+### usage: bacula_add_client [-h] [-r] [-fd_fqdn FD_FQDN]
                          [-os_type {linux,windows}]
                          [-create_client_job CREATE_CLIENT_JOB]
                          [-create_client_copy_job CREATE_CLIENT_COPY_JOB]
@@ -275,8 +276,7 @@ optional arguments:
   -dry_run              Simulate deletion
 
 
-
-##### usage: host_uptime_server [-h] [-r]
+### usage: host_uptime_server [-h] [-r]
 Listen on a TCP socket for a host's uptime echo, packed into a json dumps. The json dumps
 contains optionally a 'last_backup' json key with the seconds of the last performed backup
 as its value.
@@ -295,8 +295,7 @@ optional arguments:
   -r          Run host_uptime server
 
 
-
-##### usage: host_uptime_client [-h] [-r]
+### usage: host_uptime_client [-h] [-r]
 Connect to the host_uptime server and send a json dictionary to the echo server containing this
 hosts FQDN and the date of the latest performed bacula backup.
 
@@ -307,8 +306,7 @@ optional arguments:
   -r          Run host_uptime client
 
 
-
-##### usage: disk_full_notifier [-h] [-d]
+### usage: disk_full_notifier [-h] [-d]
 Scan all devices in /dev and use the given default_limit, that is % of the used disk space, to
 determine whether a disk the disk limit is reached and a warning mail should be send out.
 You can use the list of custom_disk tuples (diskname, limit-number) to define individual limits
@@ -320,7 +318,3 @@ CONFIG: /etc/bacula_scripts/disk_full_notifier.conf
 optional arguments:
   -h, --help  show this help message and exit
   -d          Look for full disks and eventually send out warning mail
-
-
----
-Project initially created in 05/2016

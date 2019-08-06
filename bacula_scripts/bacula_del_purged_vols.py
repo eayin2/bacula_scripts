@@ -327,7 +327,7 @@ def run(dry_run=False):
             log.info("Not removing {0}, because there are still diff backups dependent on it.".format(volpath))
             continue
         elif len(full_backups) < 3:
-            log.info("Not removing {0}, because we have less than four three backups in total.".format(volpath))
+            log.info("Not removing {0}, because we have less than three backups in total.".format(volpath))
             continue
         else:
             log.info("Adding backup to remove list")
