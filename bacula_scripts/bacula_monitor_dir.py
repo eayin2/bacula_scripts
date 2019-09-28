@@ -1,12 +1,11 @@
 #!/usr/bin/python3
-# -*- coding: utf-8 -*-
-""" bacula-monitor.py
-Check for each job whether there is a backup, that is older than a given time.
-Send warning mails for old backups.
+""" bacula-monitor-dir.py
+Check if bacula-director can connect to Catalog
+echo "status director" | bconsole |grep "Terminated Jobs"
 
 CONFIG: /etc/gymail.conf
-CONFIG: /etc/bacula-scripts/bacula_monitor_conf.py
 """
+# -*- coding: utf-8 -*-
 import argparse
 import datetime
 import os
@@ -29,15 +28,7 @@ from helputils.defaultlog import log
 sys.path.append("/etc/bacula-scripts")
 import bacula_monitor_conf as conf_mod
 from . import __version__
-from general_conf import (
-    BACULA_DIR_BIN,
-    db_host,
-    db_user,
-    db_name,
-    db_password,
-    services
-)
-
+from general_conf import db_host, db_user, db_name, db_password, services
 
 def CONF(attr):
     return getattr(conf_mod, attr, None)
@@ -46,7 +37,7 @@ def CONF(attr):
 class BaculaMonitor():
 
     def __init__(self, dry_run):
-        self.dir_conf = bacula_parse(BACULA_DIR_BIN)
+        self.dir_conf = bacula_parse("bareos-dir")
         self.dry_run = dry_run
 
     def run(self):

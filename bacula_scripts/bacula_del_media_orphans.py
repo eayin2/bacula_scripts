@@ -8,7 +8,7 @@ Removes catalog entries of inexistent volumes, you should run this better manual
 recurring in cron, because if you accidently remove a volume and want to migrate from an offsite
 backup, then the job entry would also be gone.
 
-CONFIG: /etc/bacula-scripts/bacula_del_media_orphans_conf.py 
+CONFIG: /etc/bacula-scripts/bacula_del_media_orphans_conf.py
 """
 import argparse
 import os
@@ -26,7 +26,17 @@ from helputils.defaultlog import log
 sys.path.append("/etc/bacula-scripts")
 import bacula_del_media_orphans_conf as conf_mod
 from bacula_scripts.bacula_parser import bacula_parse
-from general_conf import db_host, db_user, db_name, db_password, sd_conf, storages_conf, services
+from general_conf import (
+    BACULA_DIR_BIN,
+    BACULA_SD_BIN,
+    db_host,
+    db_user,
+    db_name,
+    db_password,
+    sd_conf,
+    services,
+    storages_conf
+)
 
 
 def CONF(attr):
@@ -59,14 +69,14 @@ def run(dry_run=False):
         media_storage = cur.fetchall()  # e.g. [('Incremental-ST-0126', 's8tb01'), ('Full-ST-0031', 's8tb01'), ..]
     except Exception as e:
         print(format_exception(e))
-    storages_conf_parsed = bacula_parse("bareos-dir")
+    storages_conf_parsed = bacula_parse(BACULA_DIR_BIN)
     for volname, storagename in media_storage:
         for storage_name, storage_value in storages_conf_parsed["Storage"].items():
             hn = storage_value["Address"]
             if not islocal(hn):
-                sd_conf_parsed = bacula_parse("bareos-sd", hn=hn)
+                sd_conf_parsed = bacula_parse(BACULA_SD_BIN, hn=hn)
             else:
-                sd_conf_parsed = bacula_parse("bareos-sd")            
+                sd_conf_parsed = bacula_parse(BACULA_SD_BIN)
             if storagename == storage_name:
                 device = storage_value["Device"]
                 ad = get_archive_device_of_device(device, sd_conf_parsed)

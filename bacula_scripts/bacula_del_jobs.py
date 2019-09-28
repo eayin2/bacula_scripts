@@ -36,8 +36,17 @@ from helputils.core import format_exception, find_mountpoint, systemd_services_u
 sys.path.append("/etc/bacula-scripts")
 import bacula_del_jobs_conf as conf_mod
 from bacula_scripts.bacula_parser import bacula_parse
-from general_conf import db_host, db_user, db_name, db_password, sd_conf, storages_conf, services
-
+from general_conf import (
+    BACULA_DIR_BIN,
+    BACULA_SD_BIN,
+    db_host,
+    db_user, 
+    db_name,
+    db_password,
+    sd_conf,
+    services,
+    storages_conf
+)
 
 def CONF(attr):
     return getattr(conf_mod, attr, None)
@@ -183,8 +192,8 @@ AND s.storageid=m.storageid
             "DEL_NEWER = ('',) and not DEL_NEWER = ('')"
         )
         return
-    sd_conf_parsed = bacula_parse("bareos-sd")
-    storages_conf_parsed = bacula_parse("bareos-dir")
+    sd_conf_parsed = bacula_parse(BACULA_SD_BIN)
+    storages_conf_parsed = bacula_parse(BACULA_DIR_BIN)
 
     del_job_media_jm_storage = list()
     for jobid, jobname, volname, storagename in select_job_media_jm_storage:

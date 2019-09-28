@@ -26,15 +26,23 @@ from subprocess import Popen, PIPE
 from helputils.core import format_exception, systemd_services_up
 from helputils.defaultlog import log
 sys.path.append("/etc/bacula-scripts")
-from general_conf import db_host, db_user, db_name, db_password, services
+from general_conf import (
+    BACULA_DIR_BIN,
+    BACULA_SD_BIN,
+    db_host,
+    db_name,
+    db_password,
+    db_user,
+    services
+)
 from bacula_scripts.bacula_parser import bacula_parse
 
-storages_conf_parsed = bacula_parse("bareos-dir")
-sd_conf_parsed = bacula_parse("bareos-sd")
+storages_conf_parsed = bacula_parse(BACULA_DIR_BIN)
+sd_conf_parsed = bacula_parse(BACULA_SD_BIN)
 
 
 def get_archive_device_of_device(device):
-    sd_conf_parsed = bacula_parse("bareos-sd")
+    sd_conf_parsed = bacula_parse(BACULA_SD_BIN)
     if device:
         device2 = sd_conf_parsed["Device"][device]
         if device2:

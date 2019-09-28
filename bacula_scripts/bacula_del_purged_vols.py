@@ -96,8 +96,17 @@ from helputils.defaultlog import log
 sys.path.append("/etc/bacula-scripts")
 import bacula_del_purged_vols_conf as conf_mod
 from bacula_scripts.bacula_parser import bacula_parse
-from general_conf import sd_conf, storages_conf, db_host, db_user, db_name, db_password, services
-
+from general_conf import (
+    BACULA_DIR_BIN,
+    BACULA_SD_BIN,
+    db_host, 
+    db_user,
+    db_name,
+    db_password,
+    sd_conf, 
+    services,
+    storages_conf
+)
 
 def CONF(attr):
     return getattr(conf_mod, attr, None)
@@ -244,8 +253,8 @@ def run(dry_run=False):
     unpurged_backups = [x for x in volumes if x[2] != "Purged"]
     full_purged, diff_purged, inc_purged, remove_backup = [list() for x in range(4)]
 
-    sd_conf_parsed = bacula_parse(CONF("bacula_sd_bin"))
-    storages_conf_parsed = bacula_parse(CONF("bacula_dir_bin"))
+    sd_conf_parsed = bacula_parse(BACULA_SD_BIN)
+    storages_conf_parsed = bacula_parse(BACULA_DIR_BIN)
 
     log.info("\n\n\n\nSorting purged volumes to full_purged, diff_purged and inc_purged.\n\n")
     log.info("There are %s purged_vols and %s unpurged_backups" % (len(purged_vols), len(unpurged_backups)))
@@ -255,7 +264,7 @@ def run(dry_run=False):
             volpath = build_volpath(volname, storagename, sd_conf_parsed, storages_conf_parsed)
         elif not islocal(hn):
             log.info("content of %s" % hn)
-            remote_sd_conf_parsed = bacula_parse(CONF("bacula_sd_bin"), hn=hn)
+            remote_sd_conf_parsed = bacula_parse(BACULA_SD_BIN, hn=hn)
             volpath = build_volpath(volname, storagename, remote_sd_conf_parsed, storages_conf_parsed, hn)
         if not volpath:
             log.info("Skipping this purged volume, because storage device is not mounted. %s:%s" % (hn, volpath))

@@ -50,6 +50,7 @@ from subprocess import Popen, PIPE
 sys.path.append("/etc/bacula-scripts")
 import bacula_add_client_conf as conf_mod
 from bacula_scripts.bacula_parser import bacula_parse
+from general_conf import BACULA_DIR_BIN
 
 
 def CONF(attr):
@@ -431,7 +432,7 @@ Console {{
         ):
         # User Input
         self.dry_run = dry_run
-        self.dir_conf = bacula_parse("bareos-dir")
+        self.dir_conf = bacula_parse(BACULA_DIR_BIN)
         self.fd_fqdn = fd_fqdn
         self.fileset = fileset
         self.os_type = os_type

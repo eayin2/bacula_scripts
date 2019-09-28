@@ -17,6 +17,7 @@ import argparse
 import datetime as dt
 import glob
 import os
+import re
 import sys
 from argparse import RawDescriptionHelpFormatter
 from subprocess import Popen, PIPE
@@ -27,14 +28,18 @@ from helputils.defaultlog import log
 os.environ["PGUSER"] = "postgres"
 
 
-def createbackup(dbname, dbtype, dbbackupdir="/tmp/dbbackupdir/"):
+def createbackup(dbname, dbtype, pg_dump_custom_format=True, pg_dump_arg="", dbbackupdir="/tmp/dbbackupdir/"):
     """Creates backup"""
+    if pg_dump_custom_format:
+        pg_dump_arg += " -Fc"
+    pg_dump_arg = pg_dump_arg.strip()
     fn = "%s_%s_%s.db" % (dbtype, dbname, dt.datetime.now().strftime("%d.%m.%y"))
     log.debug(fn)
     fn = os.path.join(dbbackupdir, fn)
     f = open(fn, "w")
     if dbtype == "postgresql":
-        cmd = ["pg_dump", dbname]
+        print("(RUN) pg_dump %s" % pg_dump_arg)
+        cmd = ["pg_dump", pg_dump_arg, dbname]
     elif dbtype == "mongodb":
         # By default mongodump dumps all db, but here we backup only the given dbname
         cmd = ["mongodump", "-d", dbname]
@@ -74,9 +79,23 @@ def main():
     p.add_argument("-c", nargs=1, help="Create a db dump backup.")
     p.add_argument(
         "-dir",
-        nargs=1,
         help="Specify the db backup directory. E.g. '/tmp/dbbackup' ",
+        nargs=1,
         required=True
+    )
+    p.add_argument(
+        "-pg_dump_arg",
+        default="",
+        help="Specify additional arg to pg_dump",
+        nargs=1,
+        required=False
+    )
+    p.add_argument(
+        "-pg_dump_custom_format",
+        action="store_true",
+        default=True,
+        help="Use pg_dump custom format -Fc. Custom format uses about level 6 compression",
+        required=False
     )
     p.add_argument("-t", choices=["postgresql", "mongodb", "mysql"], help="Choose the db type", required=True)
     args = p.parse_args()
@@ -84,7 +103,13 @@ def main():
     mkdir_p(dbbackupdir)
     if args.c:
         check_services()
-        createbackup(args.c[0], args.t, dbbackupdir=dbbackupdir)
+        createbackup(
+            args.c[0],
+            args.t,
+            pg_dump_custom_format=args.pg_dump_custom_format,
+            pg_dump_arg=args.pg_dump_arg,
+            dbbackupdir=dbbackupdir
+        )
     if args.d:
         check_services()
         delbackup(args.d[0], args.t, dbbackupdir=dbbackupdir)
