@@ -99,11 +99,11 @@ from bacula_scripts.bacula_parser import bacula_parse
 from general_conf import (
     BACULA_DIR_BIN,
     BACULA_SD_BIN,
-    db_host, 
+    db_host,
     db_user,
     db_name,
     db_password,
-    sd_conf, 
+    sd_conf,
     services,
     storages_conf
 )
@@ -265,7 +265,17 @@ def run(dry_run=False):
         elif not islocal(hn):
             log.info("content of %s" % hn)
             remote_sd_conf_parsed = bacula_parse(BACULA_SD_BIN, hn=hn)
-            volpath = build_volpath(volname, storagename, remote_sd_conf_parsed, storages_conf_parsed, hn)
+            if remote_sd_conf_parsed:
+                volpath = build_volpath(
+                    volname,
+                    storagename,
+                    remote_sd_conf_parsed,
+                    storages_conf_parsed,
+                    hn
+                )
+            else:
+                log.warning("Skipping this purged volume, because host %s is down" % hn)
+                continue
         if not volpath:
             log.info("Skipping this purged volume, because storage device is not mounted. %s:%s" % (hn, volpath))
             continue

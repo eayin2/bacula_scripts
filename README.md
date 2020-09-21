@@ -1,11 +1,11 @@
 # bacula_scripts
 
 ## Description
-`bacula_scripts` bundles scripts for Bacula/Bareos to delete backups, add new clients and
+`bacula_scripts` bundles scripts for Bareos to delete backups, add new clients and
 monitor backups.
-This package is tested for bareos, but should work for Bacula too, because both are quiete
-compatible to each other. Nevertheless this project has been named `bacula_scripts` in regard
-to Bacula's origin.
+This package is tested for bareos. It works for Bacula only partially. For example Bacula is
+missing a feature to print the current configuration, equivalent to `bareos-dir -xc`.
+Nevertheless this project has been named `bacula_scripts` in regard to Bacula's origin.
 
 ## Background
 Bareos is designed to keep backups as long as possible, never delete them, unless the
