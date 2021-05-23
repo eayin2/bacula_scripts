@@ -2,21 +2,14 @@ SELECT distinct m.volumename, s.name, m.volstatus, j.jobtdate, j.filesetid, j.cl
 j.name FROM media m, storage s, job j, jobmedia jm WHERE m.storageid=s.storageid AND
 jm.mediaid=m.mediaid AND jm.jobid=j.jobid;
 
-
-
 # Selektiere client/fileset mit volstatus
 SELECT distinct j.jobid, m.mediaid, m.volumename, s.name, m.volstatus, j.jobtdate, j.filesetid, j.clientid, 
 j.level,
 j.name FROM media m, storage s, job j, jobmedia jm WHERE m.storageid=s.storageid AND
 jm.mediaid=m.mediaid AND jm.jobid=j.jobid AND j.clientid=1 AND j.filesetid=7 ORDER BY j.jobid;
 
-
-
 # manipulate volstatus to purged (testing purpose)
 UPDATE media SET volstatus='Purged' WHERE mediaid=126;
-
-
-
 
 # selecting all backups
 SELECT distinct m.volumename, s.name, m.volstatus, j.jobtdate, j.filesetid, j.clientid, j.level,
