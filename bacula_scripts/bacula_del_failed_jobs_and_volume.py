@@ -33,18 +33,29 @@ from general_conf import (
     db_name,
     db_password,
     db_user,
-    services
+    services,
+    ARCHIVE_DEVICE
 )
 from bacula_scripts.bacula_parser import bacula_parse
 
 storages_conf_parsed = bacula_parse(BACULA_DIR_BIN)
 sd_conf_parsed = bacula_parse(BACULA_SD_BIN)
 
-
 def get_archive_device_of_device(device):
+    """
+    2021-05 Deprecated - specify path manually. Deprecated, because would need to parse
+    autochanger for device name, then get each autochanger device and check if the volume
+    is in one of the autochanger archive device paths. Those are just 3-4 lines of code,
+    but it's not needed for this setup. Keep it simple and just specify the archive device
+    manually where to look at. In this setup there won't be any redundant file names, so
+    it's safe to do.
+    """
     sd_conf_parsed = bacula_parse(BACULA_SD_BIN)
     if device:
         device2 = sd_conf_parsed["Device"][device]
+        print("devdev: %s" % device)
+        print(sd_conf_parsed["Device"])
+        print("dev2: %s" % device2)
         if device2:
             ad = device2["ArchiveDevice"]
             return ad
@@ -61,20 +72,25 @@ def get_archive_device_of_device(device):
 
 
 def get_archive_device_of_job(jobname):
+    """deprecated"""
     job = storages_conf_parsed["Job"].get(jobname, None)
     if job:
-        device = job["Storage"]
+        storage = job["Storage"]
+        device = storages_conf_parsed["Storage"].get(storage, None)
+        device = device["Device"]
         return get_archive_device_of_device(device)
     return None
 
 
 def get_archive_device_of_pool(poolname):
+    """deprecated"""
     storage = storages_conf_parsed["Pool"]["Storage"]
     device = storages_conf_parsed["Storage"][storage]["Device"]
     return get_archive_device_of_device(device)
 
 
 def get_volpath(jname, volname):
+    """deprecated"""
     archive_device = get_archive_device_of_job(jname)
     print(archive_device)
     if not archive_device:
@@ -105,6 +121,7 @@ def del_catalog(volname, jobid):
 
 
 def run(dry_run=True):
+    print("Dry run: %s" % dry_run)
     systemd_services_up(services)
     try:
         con = psycopg2.connect(database=db_name, user=db_user, host=db_host, password=db_password)
@@ -118,10 +135,14 @@ def run(dry_run=True):
     except Exception as e:
         log.error(format_exception(e))
     for jname, jobid, volname in failed_job_jm_media:
-        volume_path = get_volpath(jname, volname)
+        # deprecated 2021-05
+        # volume_path = get_volpath(jname, volname)        
+        volume_path = os.path.join(ARCHIVE_DEVICE, volname)
         log.info("Deleting catalog entries for job (id: %s, volname: %s)." % (jobid, volname))
         if not dry_run:
             print("volume_path: %s" % volume_path)
+            if not volume_path:
+                print("No volume path. Try to delete with bacula_del_orphanned")
             if volume_path:
                 log.info("Removing volume from disk %s" % volume_path)
                 os.remove(volume_path)

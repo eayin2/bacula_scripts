@@ -11,3 +11,4 @@ db_host, db_user, db_name, db_password = ("phserver01", "bareos", "bareos", "")
 services = ["bareos-dir", "postgresql"]
 BACULA_DIR_BIN = "/usr/sbin/bareos-dir"
 BACULA_SD_BIN = "/usr/sbin/bareos-sd"
+ARCHIVE_DEVICE = "/mnt/12tb01/phserver01"
