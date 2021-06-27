@@ -50,6 +50,8 @@ def has_catalog_entry(volume_name):
 def run(storage_dir, dry_run=True):
     systemd_services_up(services)
     for volume in os.listdir(storage_dir):
+        print(volume)
+        print(has_catalog_entry(volume))
         if not has_catalog_entry(volume):
             fn = os.path.join(storage_dir, volume)
             print("Delete %s" % fn)

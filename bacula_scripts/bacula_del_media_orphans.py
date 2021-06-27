@@ -45,7 +45,10 @@ def CONF(attr):
 
 def get_archive_device_of_device(device, sd_conf_parsed):
     if device:
-        device2 = sd_conf_parsed["Device"][device]
+        try:
+            device2 = sd_conf_parsed["Device"][device]
+        except:
+            device2 = None
         if device2:
             ad = device2["ArchiveDevice"]
             return ad
